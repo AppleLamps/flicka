@@ -24,7 +24,7 @@ export const useSocialFeatures = () => {
         .select('id')
         .eq('user_id', user.id)
         .eq('video_id', videoId)
-        .single();
+        .maybeSingle();
 
       if (existingLike) {
         // Unlike
@@ -78,7 +78,7 @@ export const useSocialFeatures = () => {
         .select('id')
         .eq('follower_id', user.id)
         .eq('following_id', targetUserId)
-        .single();
+        .maybeSingle();
 
       if (existingFollow) {
         // Unfollow
@@ -133,7 +133,7 @@ export const useSocialFeatures = () => {
         .select('id')
         .eq('user_id', user.id)
         .eq('video_id', videoId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         // Undo revine
