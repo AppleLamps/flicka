@@ -15,6 +15,7 @@ import {
   Camera
 } from "lucide-react";
 import { PostFlowModal } from "./PostFlowModal";
+import { VideoEditorModal } from "./VideoEditorModal";
 import { VideoUploadArea } from "./VideoUploadArea";
 import { useSocialFeatures } from "@/hooks/useSocialFeatures";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
   // Mode state
   const [mode, setMode] = useState('record');
   const [uploadedFile, setUploadedFile] = useState<{ file: File; duration: number } | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [coverChoice, setCoverChoice] = useState<{ blob?: Blob; time?: number } | null>(null);
   
   // Recording state
   const [isRecording, setIsRecording] = useState(false);
@@ -196,13 +199,22 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
 
   const handleFileSelected = (file: File, duration: number) => {
     setUploadedFile({ file, duration });
-    setTotalDuration(duration);
-    setShowPostFlow(true);
+    setTotalDuration(Math.min(duration, MAX_DURATION));
+    setEditorOpen(true);
   };
 
   const handleShowPostFlow = () => {
-    if (totalDuration > 0 || uploadedFile) {
+    if (uploadedFile) {
       setShowPostFlow(true);
+      return;
+    }
+    if (clips.length > 0) {
+      // Build a temporary file from recorded clips and open editor
+      const combinedBlob = new Blob(clips.map(c => c.data), { type: 'video/webm' });
+      const tempFile = new File([combinedBlob], `video-${Date.now()}.webm`, { type: 'video/webm' });
+      setUploadedFile({ file: tempFile, duration: totalDuration });
+      setEditorOpen(true);
+      return;
     }
   };
 
@@ -288,9 +300,9 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
           }
         });
 
-      const [videoUrl, thumbBlob] = await Promise.all([
+      const [videoUrl, generatedThumbBlob] = await Promise.all([
         uploadVideo(videoFile),
-        generateThumbnailFromFile(videoFile)
+        coverChoice?.blob ? Promise.resolve(coverChoice.blob) : generateThumbnailFromFile(videoFile)
       ]);
 
       if (!videoUrl) {
@@ -298,8 +310,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
       }
 
       let thumbnailUrl: string | null = null;
-      if (thumbBlob) {
-        thumbnailUrl = await uploadThumbnail(thumbBlob);
+      if (generatedThumbBlob) {
+        thumbnailUrl = await uploadThumbnail(generatedThumbBlob);
       }
 
       // Post video with metadata (include thumbnail if available)
@@ -489,11 +501,12 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               
               return (
                 <div key={i} className="flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
-                  <div 
+                  <div
+                    aria-label={`Progress segment ${i+1}`}
                     className={`h-full transition-all duration-100 ${
                       isRecordingSegment ? 'bg-red-500' : 'bg-primary'
-                    }`}
-                    style={{ width: `${segmentProgress}%` }}
+                    } w-[var(--w)]`}
+                    style={{ ['--w' as any]: `${segmentProgress}%` }}
                   />
                 </div>
               );
@@ -581,6 +594,23 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
           </div>
         </div>
       </div>
+
+      {/* Editor Modal */}
+      {uploadedFile && (
+        <VideoEditorModal
+          isOpen={editorOpen}
+          file={uploadedFile.file}
+          duration={uploadedFile.duration}
+          maxFinalDuration={MAX_DURATION}
+          onClose={() => setEditorOpen(false)}
+          onApply={({ file, duration, coverBlob, coverTime }) => {
+            setUploadedFile({ file, duration });
+            setTotalDuration(duration);
+            setCoverChoice({ blob: coverBlob, time: coverTime });
+            setShowPostFlow(true);
+          }}
+        />
+      )}
 
       {/* Post Flow Modal */}
       <PostFlowModal

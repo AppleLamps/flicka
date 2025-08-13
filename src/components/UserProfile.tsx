@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, MoreHorizontal, UserPlus, MessageCircle, Share2 } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, UserPlus, MessageCircle, Share2, Copy, Share, Link as LinkIcon, Grid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +9,9 @@ import { Video } from "@/hooks/usePaginatedVideos";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { EnhancedVideoCard } from "./EnhancedVideoCard";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileEditModal } from "./ProfileEditModal";
+import { ShareSheet } from "./ShareSheet";
 
 interface UserProfileProps {
   userId?: string;
@@ -130,6 +133,9 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
   const [followersModal, setFollowersModal] = useState(false);
   const [followingModal, setFollowingModal] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [gridView, setGridView] = useState<'grid' | 'list'>('grid');
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -207,6 +213,7 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
           .eq('follower_id', user.id)
           .eq('following_id', profile.user_id);
         setIsFollowing(false);
+        setProfile(prev => prev ? { ...prev, followers_count: Math.max(0, (prev.followers_count || 0) - 1) } as ProfileData : prev);
       } else {
         await supabase
           .from('follows')
@@ -215,6 +222,7 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
             following_id: profile.user_id
           });
         setIsFollowing(true);
+        setProfile(prev => prev ? { ...prev, followers_count: (prev.followers_count || 0) + 1 } as ProfileData : prev);
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
@@ -224,6 +232,26 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
         variant: "destructive"
       });
     }
+  };
+
+  const handleShareProfile = async () => {
+    if (!profile) return;
+    const url = `${window.location.origin}/@${profile.username}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${profile.display_name} on Loop`, url });
+      } else {
+        setShareOpen(true);
+      }
+    } catch {}
+  };
+
+  const handleCopyUsername = async () => {
+    if (!profile) return;
+    try {
+      await navigator.clipboard.writeText(`@${profile.username}`);
+      toast({ title: "Copied", description: "Username copied to clipboard" });
+    } catch {}
   };
 
   if (loading) {
@@ -270,24 +298,24 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="icon-button">
-            <MoreHorizontal className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" className="icon-button" onClick={handleShareProfile} aria-label="Share profile" title="Share profile">
+              <Share className="w-5 h-5" />
+            </Button>
+            <Button variant="ghost" size="sm" className="icon-button" onClick={handleCopyUsername} aria-label="Copy username" title="Copy username">
+              <Copy className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
       {/* Profile Info */}
       <div className="px-4 py-6">
         <div className="flex items-start gap-4 mb-6">
-          <div className="w-20 h-20 bg-muted rounded-full overflow-hidden flex-shrink-0">
-            {profile.avatar_url && (
-              <img
-                src={profile.avatar_url}
-                alt={profile.display_name}
-                className="w-full h-full object-cover"
-              />
-            )}
-          </div>
+          <Avatar className="w-20 h-20">
+            <AvatarImage src={profile.avatar_url} alt={profile.display_name} />
+            <AvatarFallback>{profile.display_name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+          </Avatar>
           
           <div className="flex-1">
             <h2 className="text-xl font-bold mb-1">{profile.display_name}</h2>
@@ -295,6 +323,21 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
             
             {profile.bio && (
               <p className="text-foreground mb-4">{profile.bio}</p>
+            )}
+
+            {(profile.website_url || (profile as any).links) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {profile.website_url && (
+                  <a href={profile.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
+                    <LinkIcon className="w-3 h-3" /> Website
+                  </a>
+                )}
+                {((profile as any).links?.items || []).map((l: any, idx: number) => (
+                  <a key={idx} href={l.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs">
+                    <LinkIcon className="w-3 h-3" /> {l.title || l.url}
+                  </a>
+                ))}
+              </div>
             )}
 
             {/* Stats */}
@@ -322,7 +365,7 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
             {/* Action Buttons */}
             <div className="flex gap-2">
               {isOwnProfile ? (
-                <Button variant="outline" className="flex-1 rounded-xl">
+                <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowEdit(true)}>
                   Edit Profile
                 </Button>
               ) : (
@@ -338,7 +381,7 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
                   <Button variant="outline" size="sm" className="icon-button">
                     <MessageCircle className="w-4 h-4" />
                   </Button>
-                  <Button variant="outline" size="sm" className="icon-button">
+                  <Button variant="outline" size="sm" className="icon-button" onClick={handleShareProfile} aria-label="Share profile" title="Share profile">
                     <Share2 className="w-4 h-4" />
                   </Button>
                 </>
@@ -353,43 +396,72 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
         <TabsList className="w-full">
           <TabsTrigger value="videos" className="flex-1">Videos</TabsTrigger>
           <TabsTrigger value="liked" className="flex-1">Liked</TabsTrigger>
+          <TabsTrigger value="about" className="flex-1">About</TabsTrigger>
+          <TabsTrigger value="saved" className="flex-1">Saved</TabsTrigger>
         </TabsList>
         
         <TabsContent value="videos" className="mt-6">
+          <div className="flex justify-end mb-2">
+            <Button variant="ghost" size="sm" onClick={() => setGridView(v => v === 'grid' ? 'list' : 'grid')}>
+              {gridView === 'grid' ? <List className="w-4 h-4 mr-2" /> : <Grid className="w-4 h-4 mr-2" />}
+              {gridView === 'grid' ? 'List' : 'Grid'} view
+            </Button>
+          </div>
           {videos.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No videos yet</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-1">
-              {videos.map((video) => (
-                <button
-                  key={video.id}
-                  onClick={() => onVideoSelect?.(video)}
-                  className="aspect-[9/16] bg-muted rounded-lg overflow-hidden relative group"
-                >
-                  <img
-                    src={video.thumbnail_url || '/placeholder.svg'}
-                    alt=""
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                  />
-                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
-                  <div className="absolute bottom-2 left-2 right-2">
-                    {video.title && (
-                      <p className="text-white text-xs font-medium line-clamp-2">
-                        {video.title}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
+            gridView === 'grid' ? (
+              <div className="grid grid-cols-3 gap-1">
+                {videos.map((video) => (
+                  <button key={video.id} onClick={() => onVideoSelect?.(video)} className="aspect-[9/16] bg-muted rounded-lg overflow-hidden relative group" aria-label="Open video" title="Open video">
+                    <img src={video.thumbnail_url || '/placeholder.svg'} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {videos.map((video) => (
+                  <button key={video.id} onClick={() => onVideoSelect?.(video)} className="flex gap-3 items-center p-2 rounded-lg hover:bg-muted/50" aria-label="Open video" title="Open video">
+                    <div className="w-20 aspect-[9/16] bg-muted rounded overflow-hidden">
+                      <img src={video.thumbnail_url || '/placeholder.svg'} alt="" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <div className="text-sm font-medium line-clamp-2">{video.title || 'Untitled'}</div>
+                      <div className="text-xs text-muted-foreground">{new Date(video.created_at).toLocaleDateString()}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
           )}
         </TabsContent>
         
         <TabsContent value="liked" className="mt-6">
           <div className="text-center py-12">
             <p className="text-muted-foreground">Liked videos are private</p>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="about" className="mt-6">
+          <div className="space-y-4">
+            {profile.bio ? (
+              <p className="text-sm leading-relaxed whitespace-pre-line">{profile.bio}</p>
+            ) : (
+              <p className="text-muted-foreground text-sm">No bio yet.</p>
+            )}
+            <div className="text-xs text-muted-foreground">Joined {new Date(profile.created_at).toLocaleDateString()}</div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleShareProfile}><Share2 className="w-4 h-4 mr-2" /> Share profile</Button>
+              <Button variant="outline" size="sm" onClick={handleCopyUsername}><Copy className="w-4 h-4 mr-2" /> Copy @username</Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="saved" className="mt-6">
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Saved collections coming soon</p>
           </div>
         </TabsContent>
       </Tabs>
@@ -407,6 +479,18 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
         userId={profile.user_id}
         type="following"
       />
+
+      {isOwnProfile && (
+        <ProfileEditModal
+          isOpen={showEdit}
+          onClose={() => {
+            setShowEdit(false);
+            loadProfile();
+          }}
+        />
+      )}
+
+      <ShareSheet open={shareOpen} onOpenChange={setShareOpen} title={`${profile.display_name} on Loop`} url={`${window.location.origin}/@${profile.username}`} />
     </div>
   );
 };

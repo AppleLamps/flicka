@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Loader2 } from 'lucide-react';
+import { Camera, Loader2, Image as ImageIcon, Link as LinkIcon, Plus, Trash } from 'lucide-react';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -25,6 +25,8 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
     display_name: profile?.display_name || '',
     username: profile?.username || '',
     bio: profile?.bio || '',
+    website_url: profile?.website_url || '',
+    links: (profile?.links as any)?.items || [],
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -73,6 +75,34 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
     }
   };
 
+  const handleBannerUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+    setUploadingAvatar(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/banner.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ banner_url: publicUrl })
+        .eq('user_id', user.id);
+      if (updateError) throw updateError;
+      await refreshProfile();
+      toast({ title: 'Success', description: 'Banner updated successfully!' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to upload banner', variant: 'destructive' });
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
 
@@ -84,6 +114,8 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
           display_name: formData.display_name,
           username: formData.username,
           bio: formData.bio,
+          website_url: formData.website_url || null,
+          links: { items: formData.links }
         })
         .eq('user_id', user.id);
 
@@ -114,6 +146,20 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
         </DialogHeader>
         
         <div className="space-y-4 py-4">
+          {/* Banner upload */}
+          <div className="space-y-2">
+            <div className="relative h-24 rounded-lg overflow-hidden bg-muted">
+              {profile?.banner_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.banner_url} alt="banner" className="w-full h-full object-cover" />
+              )}
+              <label htmlFor="banner-upload" className="absolute inset-0 flex items-center justify-center bg-black/30 text-white text-sm cursor-pointer">
+                <ImageIcon className="w-4 h-4 mr-2" /> Change banner
+              </label>
+              <input id="banner-upload" type="file" accept="image/*" className="hidden" onChange={handleBannerUpload} />
+            </div>
+          </div>
+
           {/* Avatar upload */}
           <div className="flex flex-col items-center space-y-2">
             <div className="relative">
@@ -175,6 +221,33 @@ export const ProfileEditModal = ({ isOpen, onClose }: ProfileEditModalProps) => 
               placeholder="Tell us about yourself..."
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="website">Website</Label>
+            <Input id="website" value={formData.website_url} onChange={(e) => handleInputChange('website_url', e.target.value)} placeholder="https://your.site" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Links</Label>
+            <div className="space-y-2">
+              {formData.links.map((l: any, idx: number) => (
+                <div key={idx} className="flex gap-2">
+                  <Input value={l?.title || ''} onChange={(e) => {
+                    const next = [...formData.links];
+                    next[idx] = { ...next[idx], title: e.target.value };
+                    setFormData(prev => ({ ...prev, links: next }));
+                  }} placeholder="Title" />
+                  <Input value={l?.url || ''} onChange={(e) => {
+                    const next = [...formData.links];
+                    next[idx] = { ...next[idx], url: e.target.value };
+                    setFormData(prev => ({ ...prev, links: next }));
+                  }} placeholder="https://" />
+                  <Button variant="ghost" onClick={() => setFormData(prev => ({ ...prev, links: prev.links.filter((_: any, i: number) => i !== idx) }))}><Trash className="w-4 h-4" /></Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setFormData(prev => ({ ...prev, links: [...prev.links, { title: '', url: '' }] }))}><Plus className="w-4 h-4 mr-2" />Add link</Button>
+            </div>
           </div>
         </div>
 

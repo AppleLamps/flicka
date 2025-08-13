@@ -42,8 +42,8 @@ export const VideoUploadArea = ({ onFileSelected, onCancel }: VideoUploadAreaPro
       const duration = await loadPromise;
       URL.revokeObjectURL(video.src);
 
-      if (duration > 6) {
-        setValidationError(`Video is ${duration.toFixed(1)}s. Maximum is 6 seconds.`);
+      if (duration > 60) {
+        setValidationError(`Video is ${duration.toFixed(1)}s. Maximum is 60 seconds (you can trim in editor).`);
         setIsValidating(false);
         return;
       }
@@ -105,7 +105,7 @@ export const VideoUploadArea = ({ onFileSelected, onCancel }: VideoUploadAreaPro
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/60 to-transparent z-10">
         <div className="flex items-center justify-between">
-          <button onClick={onCancel} className="icon-button">
+          <button onClick={onCancel} className="icon-button" aria-label="Close upload" title="Close upload">
             <X size={24} className="text-white" />
           </button>
           <h2 className="text-white font-medium">Upload Video</h2>
@@ -142,7 +142,7 @@ export const VideoUploadArea = ({ onFileSelected, onCancel }: VideoUploadAreaPro
                 </div>
 
                 <div className="space-y-1 text-xs text-muted-foreground">
-                  <p>• Maximum 6 seconds</p>
+                  <p>• Upload up to 60s, then trim to 6s</p>
                   <p>• MP4, WebM, MOV supported</p>
                   <p>• Up to 50MB file size</p>
                 </div>
@@ -170,6 +170,8 @@ export const VideoUploadArea = ({ onFileSelected, onCancel }: VideoUploadAreaPro
                   variant="ghost"
                   size="sm"
                   onClick={clearSelection}
+                  aria-label="Clear selected file"
+                  title="Clear selected file"
                   className="p-1"
                 >
                   <X size={16} />
@@ -211,6 +213,8 @@ export const VideoUploadArea = ({ onFileSelected, onCancel }: VideoUploadAreaPro
         accept="video/mp4,video/webm,video/mov,video/quicktime"
         onChange={handleFileInputChange}
         className="hidden"
+        aria-label="Select video file"
+        title="Select video file"
       />
     </div>
   );
