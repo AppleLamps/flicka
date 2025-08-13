@@ -5,7 +5,7 @@ import { EnhancedVideoCard } from "@/components/EnhancedVideoCard";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CaptureScreen } from "@/components/CaptureScreen";
 import { VideoDetailSheet } from "@/components/VideoDetailSheet";
-import { useVideos } from '../hooks/useVideos';
+import { usePaginatedVideos } from '../hooks/usePaginatedVideos';
 import { useComments } from '../hooks/useComments';
 import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { HomeFeedEmpty, ExploreEmpty, NotificationsEmpty, NetworkError } from "@/components/EmptyStates";
@@ -17,6 +17,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSocialFeatures } from "@/hooks/useSocialFeatures";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { SearchModal } from "@/components/SearchModal";
+import { UserProfile } from "@/components/UserProfile";
+import { InfiniteScroll } from "@/components/InfiniteScroll";
 
 
 const Index = () => {
@@ -27,14 +30,17 @@ const Index = () => {
   
   const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'capture' | 'notifications' | 'profile'>('home');
   const [showCapture, setShowCapture] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [scrollY, setScrollY] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [realTimeComments, setRealTimeComments] = useState<any[]>([]);
   
-  // Real data hooks
-  const { videos, loading: videosLoading, error: videosError, refreshVideos } = useVideos();
+  // Real data hooks with pagination
+  const { videos, loading: videosLoading, loadingMore, error: videosError, hasMore, refreshVideos, loadMore } = usePaginatedVideos();
   const { comments, loading: commentsLoading, addComment: addNewComment, fetchComments } = useComments(selectedVideo?.id);
   const containerRef = useRef<HTMLDivElement>(null);
   
@@ -168,6 +174,15 @@ const Index = () => {
     }
   };
 
+  const handleUserClick = (userId: string) => {
+    setSelectedUserId(userId);
+    setShowUserProfile(true);
+  };
+
+  const handleVideoSelect = (video: any) => {
+    setSelectedVideo(video);
+  };
+
   const handleCommentSubmit = async (text: string) => {
     if (!selectedVideo?.id || !text.trim()) return;
     
@@ -202,6 +217,20 @@ const Index = () => {
     return <CaptureScreen onClose={handleCaptureClose} onPost={refreshVideos} />;
   }
 
+  // Show user profile
+  if (showUserProfile) {
+    return (
+      <UserProfile
+        userId={selectedUserId || undefined}
+        onBack={() => {
+          setShowUserProfile(false);
+          setSelectedUserId(null);
+        }}
+        onVideoSelect={handleVideoSelect}
+      />
+    );
+  }
+
   // Content rendering logic
   const renderContent = () => {
     if (error) {
@@ -228,7 +257,12 @@ const Index = () => {
     // Regular content for each tab
     if (activeTab === 'home') {
       return (
-        <div className="w-full">
+        <InfiniteScroll
+          hasMore={hasMore}
+          isLoading={loadingMore}
+          onLoadMore={loadMore}
+          className="w-full"
+        >
           {videos.map((video, index) => (
             <div 
               key={video.id}
@@ -260,7 +294,7 @@ const Index = () => {
                 autoPlay={index === currentVideoIndex}
                 isBuffering={isBuffering[video.id] || false}
                 onComment={() => handleVideoComment(video.id)}
-                onUserClick={() => console.log('User clicked:', video.profiles?.username)}
+                onUserClick={() => handleUserClick(video.user_id)}
                 onLike={() => toggleLike(video.id)}
                 onShare={() => console.log('Share video:', video.id)}
                 onRevine={() => console.log('Revine video:', video.id)}
@@ -270,7 +304,7 @@ const Index = () => {
               />
             </div>
           ))}
-        </div>
+        </InfiniteScroll>
       );
     }
 
@@ -349,7 +383,15 @@ const Index = () => {
       <TopAppBar 
         hasNotifications={true}
         onCaptureClick={() => setShowCapture(true)}
+        onSearchClick={() => setShowSearch(true)}
         isScrolled={scrollY > 50}
+      />
+
+      {/* Search Modal */}
+      <SearchModal
+        open={showSearch}
+        onOpenChange={setShowSearch}
+        onVideoSelect={handleVideoSelect}
       />
 
       {/* Main Content */}
