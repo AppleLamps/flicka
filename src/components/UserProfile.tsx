@@ -325,7 +325,8 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
               <p className="text-foreground mb-4">{profile.bio}</p>
             )}
 
-            {(profile.website_url || (profile as any).links) && (
+            {/* Temporarily commented until types regenerate */}
+            {/* {(profile.website_url || (profile as any).links) && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {profile.website_url && (
                   <a href={profile.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
@@ -338,7 +339,7 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
                   </a>
                 ))}
               </div>
-            )}
+            )} */}
 
             {/* Stats */}
             <div className="flex gap-6 mb-4">
