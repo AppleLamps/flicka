@@ -5,6 +5,8 @@ import { EnhancedVideoCard } from "@/components/EnhancedVideoCard";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CaptureScreen } from "@/components/CaptureScreen";
 import { VideoDetailSheet } from "@/components/VideoDetailSheet";
+import { useVideos } from '../hooks/useVideos';
+import { useComments } from '../hooks/useComments';
 import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { HomeFeedEmpty, ExploreEmpty, NotificationsEmpty, NetworkError } from "@/components/EmptyStates";
 import { ProfileEditModal } from "@/components/ProfileEditModal";
@@ -124,16 +126,20 @@ const mockComments = [
 const Index = () => {
   const { user, loading: authLoading, profile, signOut } = useAuth();
   const { toggleLike, toggleFollow, addComment } = useSocialFeatures();
+  
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'capture' | 'notifications' | 'profile'>('home');
   const [showCapture, setShowCapture] = useState(false);
-  const [selectedVideo, setSelectedVideo] = useState<typeof mockVideos[0] | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<any>(null);
   const [scrollY, setScrollY] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
-  const [videos, setVideos] = useState<any[]>([]);
   const [realTimeComments, setRealTimeComments] = useState<any[]>([]);
+  
+  // Real data hooks
+  const { videos, loading: videosLoading, error: videosError, refreshVideos } = useVideos();
+  const { comments, loading: commentsLoading, addComment: addNewComment, fetchComments } = useComments(selectedVideo?.id);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Redirect to auth if not logged in
@@ -241,6 +247,7 @@ const Index = () => {
   };
 
   const handleRefresh = () => {
+    refreshVideos();
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -261,15 +268,21 @@ const Index = () => {
   };
 
   const handleVideoComment = (videoId: string) => {
-    const video = mockVideos.find(v => v.id === videoId);
+    const video = videos.find(v => v.id === videoId);
     if (video) {
       setSelectedVideo(video);
+      fetchComments(video.id);
     }
   };
 
-  const handleCommentSubmit = (text: string) => {
-    console.log('New comment:', text);
-    // Handle comment submission
+  const handleCommentSubmit = async (text: string) => {
+    if (!selectedVideo?.id || !text.trim()) return;
+    
+    try {
+      await addNewComment(selectedVideo.id, text);
+    } catch (error) {
+      console.error('Error posting comment:', error);
+    }
   };
 
   const handleCommentLike = (commentId: string) => {
@@ -307,11 +320,11 @@ const Index = () => {
     }
 
     // Empty states for different tabs
-    if (activeTab === "home" && mockVideos.length === 0) {
+    if (activeTab === "home" && videos.length === 0 && !videosLoading) {
       return <HomeFeedEmpty onExplore={handleExplore} onCapture={handleCreateLoop} />;
     }
 
-    if (activeTab === "explore" && mockVideos.length === 0) {
+    if (activeTab === "explore" && videos.length === 0) {
       return <ExploreEmpty onRefresh={handleRefresh} />;
     }
 
@@ -323,24 +336,39 @@ const Index = () => {
     if (activeTab === 'home') {
       return (
         <div className="w-full">
-          {mockVideos.map((video, index) => (
+          {videos.map((video, index) => (
             <div 
               key={video.id}
               data-video-id={video.id}
               className="w-full h-screen snap-start"
             >
               <EnhancedVideoCard
-                {...video}
+                id={video.id}
+                videoUrl={video.video_url}
+                thumbnailUrl={video.thumbnail_url}
                 user={{
-                  ...video.user,
-                  isVerified: video.user.username === 'creativeartist',
-                  isPrivate: video.user.username === 'urbandancer'
+                  id: video.user_id,
+                  username: video.profiles?.username || 'user',
+                  displayName: video.profiles?.display_name || 'User',
+                  avatarUrl: video.profiles?.avatar_url || '',
+                  isVerified: false,
+                  isPrivate: false
+                }}
+                caption={video.description || ''}
+                hashtags={video.hashtags || []}
+                audioTitle={video.audio_title}
+                stats={{
+                  likes: video.likes_count,
+                  comments: video.comments_count,
+                  shares: 0,
+                  saves: 0,
+                  revines: 0
                 }}
                 autoPlay={index === currentVideoIndex}
                 isBuffering={isBuffering[video.id] || false}
                 onComment={() => handleVideoComment(video.id)}
-                onUserClick={() => console.log('User clicked:', video.user.username)}
-                onLike={() => console.log('Like video:', video.id)}
+                onUserClick={() => console.log('User clicked:', video.profiles?.username)}
+                onLike={() => toggleLike(video.id)}
                 onShare={() => console.log('Share video:', video.id)}
                 onRevine={() => console.log('Revine video:', video.id)}
                 onVideoRef={(element) => handleVideoRef(video.id, element)}
@@ -449,8 +477,21 @@ const Index = () => {
           isOpen={!!selectedVideo}
           onClose={() => setSelectedVideo(null)}
           video={selectedVideo}
-          comments={mockComments}
-          isLoadingComments={false}
+          comments={comments.map(comment => ({
+            id: comment.id,
+            user: {
+              id: comment.user_id,
+              username: comment.profiles?.username || 'user',
+              displayName: comment.profiles?.display_name || 'User',
+              avatarUrl: comment.profiles?.avatar_url || '',
+            },
+            text: comment.content,
+            timestamp: comment.created_at,
+            likes: 0,
+            isLiked: false,
+            replies: []
+          }))}
+          isLoadingComments={commentsLoading}
           onShare={() => console.log('Share video')}
           onCommentSubmit={handleCommentSubmit}
           onCommentLike={handleCommentLike}
