@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { TopAppBar } from "@/components/TopAppBar";
 import { VideoCard } from "@/components/VideoCard";
 import { BottomNavigation } from "@/components/BottomNavigation";
@@ -24,7 +24,9 @@ const mockVideos = [
     stats: {
       likes: 1240,
       comments: 89,
-      shares: 156
+      shares: 156,
+      saves: 45,
+      revines: 23
     },
     isLiked: false
   },
@@ -45,7 +47,9 @@ const mockVideos = [
     stats: {
       likes: 2890,
       comments: 234,
-      shares: 445
+      shares: 445,
+      saves: 123,
+      revines: 67
     },
     isLiked: true
   }
@@ -111,8 +115,68 @@ const Index = () => {
   const [showCapture, setShowCapture] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<typeof mockVideos[0] | null>(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Haptic feedback helper
+  const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
+    if ('vibrate' in navigator) {
+      const patterns = { light: 10, medium: 50, heavy: 100 };
+      navigator.vibrate(patterns[type]);
+    }
+  }, []);
+
+  // Auto-play video management with IntersectionObserver
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const videoId = entry.target.getAttribute('data-video-id');
+          const video = videoRefs.current[videoId!];
+          
+          if (entry.isIntersecting && entry.intersectionRatio > 0.7) {
+            // Video is mostly visible, play it
+            if (video && playingVideo !== videoId) {
+              // Pause currently playing video
+              if (playingVideo && videoRefs.current[playingVideo]) {
+                videoRefs.current[playingVideo].pause();
+              }
+              setPlayingVideo(videoId);
+              video.play().catch(() => {});
+            }
+          } else if (video && playingVideo === videoId) {
+            // Video is not visible, pause it
+            video.pause();
+            setPlayingVideo(null);
+          }
+        });
+      },
+      { threshold: [0.7] }
+    );
+
+    // Observe all video cards
+    if (containerRef.current) {
+      const videoCards = containerRef.current.querySelectorAll('[data-video-id]');
+      videoCards.forEach((card) => observer.observe(card));
+    }
+
+    return () => observer.disconnect();
+  }, [playingVideo]);
+
+  // Handle scroll for Top App Bar blur effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleTabChange = (tab: typeof activeTab) => {
+    triggerHaptic('light');
     if (tab === 'capture') {
       setShowCapture(true);
     } else {
@@ -142,6 +206,14 @@ const Index = () => {
     // Handle comment like
   };
 
+  const handleVideoRef = useCallback((videoId: string, element: HTMLVideoElement | null) => {
+    if (element) {
+      videoRefs.current[videoId] = element;
+    } else {
+      delete videoRefs.current[videoId];
+    }
+  }, []);
+
   // Show capture screen
   if (showCapture) {
     return <CaptureScreen onClose={handleCaptureClose} />;
@@ -153,28 +225,33 @@ const Index = () => {
       <TopAppBar 
         hasNotifications={true}
         onCaptureClick={() => setShowCapture(true)}
+        isScrolled={scrollY > 50}
       />
 
       {/* Main Content */}
-      <main className="pt-16 pb-20">
+      <main className="pt-16 pb-20" ref={containerRef}>
         {activeTab === 'home' && (
-          <div className="relative">
-            {/* Video Feed */}
-            <div className="snap-y snap-mandatory overflow-y-auto h-screen">
-              {mockVideos.map((video, index) => (
-                <div key={video.id} className="snap-start">
-                  <VideoCard
-                    {...video}
-                    autoPlay={index === currentVideoIndex}
-                    onComment={() => handleVideoComment(video.id)}
-                    onUserClick={() => console.log('User clicked:', video.user.username)}
-                    onLike={() => console.log('Like video:', video.id)}
-                    onShare={() => console.log('Share video:', video.id)}
-                    onFollow={() => console.log('Follow user:', video.user.id)}
-                  />
-                </div>
-              ))}
-            </div>
+          <div className="w-full">
+            {mockVideos.map((video, index) => (
+              <div 
+                key={video.id}
+                data-video-id={video.id}
+                className="w-full h-screen snap-start"
+              >
+                <VideoCard
+                  {...video}
+                  autoPlay={index === currentVideoIndex}
+                  onComment={() => handleVideoComment(video.id)}
+                  onUserClick={() => console.log('User clicked:', video.user.username)}
+                  onLike={() => console.log('Like video:', video.id)}
+                  onShare={() => console.log('Share video:', video.id)}
+                  onRevine={() => console.log('Revine video:', video.id)}
+                  onFollow={() => console.log('Follow user:', video.user.id)}
+                  onVideoRef={(element) => handleVideoRef(video.id, element)}
+                  triggerHaptic={triggerHaptic}
+                />
+              </div>
+            ))}
           </div>
         )}
 

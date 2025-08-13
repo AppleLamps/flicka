@@ -5,17 +5,23 @@ interface TopAppBarProps {
   onSearchClick?: () => void;
   onCaptureClick?: () => void;
   onNotificationsClick?: () => void;
+  isScrolled?: boolean;
 }
 
 export const TopAppBar = ({ 
   hasNotifications = false, 
   onSearchClick, 
   onCaptureClick,
-  onNotificationsClick 
+  onNotificationsClick,
+  isScrolled = false
 }: TopAppBarProps) => {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-header">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
+    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      isScrolled ? 'backdrop-blur-header' : 'bg-transparent'
+    }`}>
+      <div className={`flex items-center justify-between px-4 py-3 transition-all duration-300 ${
+        isScrolled ? 'border-b border-border/20' : ''
+      }`}>
         {/* Brand Mark */}
         <div className="flex items-center">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">

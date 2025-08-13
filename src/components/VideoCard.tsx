@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { Heart, MessageCircle, Share, Plus, Play } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Heart, MessageCircle, Share, Plus, Play, Repeat2, Bookmark, MoreHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface VideoCardProps {
   id: string;
@@ -19,13 +20,18 @@ interface VideoCardProps {
     likes: number;
     comments: number;
     shares: number;
+    saves: number;
+    revines?: number;
   };
   isLiked?: boolean;
   onLike?: () => void;
   onComment?: () => void;
   onShare?: () => void;
+  onRevine?: () => void;
   onFollow?: () => void;
   onUserClick?: () => void;
+  onVideoRef?: (element: HTMLVideoElement | null) => void;
+  triggerHaptic?: (type?: 'light' | 'medium' | 'heavy') => void;
   autoPlay?: boolean;
 }
 
@@ -42,34 +48,118 @@ export const VideoCard = ({
   onLike,
   onComment,
   onShare,
+  onRevine,
   onFollow,
   onUserClick,
+  onVideoRef,
+  triggerHaptic,
   autoPlay = true
 }: VideoCardProps) => {
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [progress, setProgress] = useState(0);
   const [liked, setLiked] = useState(isLiked);
+  const [isRevined, setIsRevined] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(user.isFollowing || false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
   const [likeCount, setLikeCount] = useState(stats.likes);
+  const [revineCount, setRevineCount] = useState(stats.revines || 0);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
+  const lastTap = useRef<number>(0);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    // Register video ref with parent
+    if (onVideoRef) {
+      onVideoRef(video);
+    }
+
     const updateProgress = () => {
-      const progress = (video.currentTime / video.duration) * 100;
-      setProgress(progress);
+      const currentTime = video.currentTime;
+      const duration = video.duration;
+      if (duration > 0) {
+        // Reset progress every 6 seconds for loop effect
+        const loopTime = currentTime % 6;
+        setProgress((loopTime / 6) * 100);
+      }
+    };
+
+    const handleEnded = () => {
+      video.currentTime = 0;
+      setProgress(0);
+      video.play();
     };
 
     video.addEventListener('timeupdate', updateProgress);
-    return () => video.removeEventListener('timeupdate', updateProgress);
+    video.addEventListener('ended', handleEnded);
+
+    return () => {
+      video.removeEventListener('timeupdate', updateProgress);
+      video.removeEventListener('ended', handleEnded);
+      // Cleanup video ref
+      if (onVideoRef) {
+        onVideoRef(null);
+      }
+    };
+  }, [onVideoRef]);
+
+  // Double-tap to like functionality
+  const handleVideoTap = useCallback(() => {
+    const now = Date.now();
+    const timeDiff = now - lastTap.current;
+    
+    if (timeDiff < 300 && timeDiff > 0) {
+      // Double tap detected
+      handleLike();
+      triggerHaptic?.('medium');
+    } else {
+      // Single tap - toggle play/pause
+      setTimeout(() => {
+        if (Date.now() - lastTap.current >= 300) {
+          handleVideoClick();
+        }
+      }, 300);
+    }
+    
+    lastTap.current = now;
   }, []);
 
-  const handleLike = () => {
+  // Long press for quick actions
+  const handleTouchStart = useCallback(() => {
+    longPressTimeout.current = setTimeout(() => {
+      setShowQuickActions(true);
+      triggerHaptic?.('heavy');
+    }, 500);
+  }, [triggerHaptic]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimeout.current) {
+      clearTimeout(longPressTimeout.current);
+      longPressTimeout.current = null;
+    }
+  }, []);
+
+  const handleLike = useCallback(() => {
     setLiked(!liked);
     setLikeCount(prev => liked ? prev - 1 : prev + 1);
+    triggerHaptic?.('light');
     onLike?.();
-  };
+  }, [liked, triggerHaptic, onLike]);
+
+  const handleRevine = useCallback(() => {
+    setIsRevined(!isRevined);
+    setRevineCount(prev => isRevined ? prev - 1 : prev + 1);
+    triggerHaptic?.('medium');
+    onRevine?.();
+  }, [isRevined, triggerHaptic, onRevine]);
+
+  const handleFollow = useCallback(() => {
+    setIsFollowing(!isFollowing);
+    triggerHaptic?.('light');
+    onFollow?.();
+  }, [isFollowing, triggerHaptic, onFollow]);
 
   const handleVideoClick = () => {
     const video = videoRef.current;
@@ -98,7 +188,11 @@ export const VideoCard = ({
         src={videoUrl}
         poster={thumbnailUrl}
         className="w-full h-full object-cover cursor-pointer"
-        onClick={handleVideoClick}
+        onClick={handleVideoTap}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleTouchStart}
+        onMouseUp={handleTouchEnd}
         loop
         muted
         autoPlay={autoPlay}
@@ -141,6 +235,41 @@ export const VideoCard = ({
         </svg>
       </div>
 
+      {/* Quick Actions Menu */}
+      {showQuickActions && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background/90 backdrop-blur-md rounded-2xl p-6 flex flex-col gap-4 min-w-[200px]">
+            <button 
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent/10 transition-colors"
+              onClick={() => setShowQuickActions(false)}
+            >
+              <Bookmark size={20} />
+              <span>Save Video</span>
+            </button>
+            <button 
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent/10 transition-colors"
+              onClick={() => setShowQuickActions(false)}
+            >
+              <Share size={20} />
+              <span>Copy Link</span>
+            </button>
+            <button 
+              className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent/10 text-destructive"
+              onClick={() => setShowQuickActions(false)}
+            >
+              <MoreHorizontal size={20} />
+              <span>Report</span>
+            </button>
+            <button 
+              className="mt-2 px-4 py-2 bg-secondary rounded-xl"
+              onClick={() => setShowQuickActions(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Overlay - User Info */}
       <div className="absolute top-0 left-0 right-0 p-4 video-overlay-top">
         <div className="flex items-center justify-between">
@@ -163,14 +292,17 @@ export const VideoCard = ({
             </div>
           </button>
 
-          {!user.isFollowing && (
-            <button
-              onClick={onFollow}
-              className="btn-primary text-sm px-4 py-2"
-            >
-              Follow
-            </button>
-          )}
+          <button
+            onClick={handleFollow}
+            className={cn(
+              "text-sm px-4 py-2 rounded-xl font-medium transition-all duration-200 min-w-[80px]",
+              isFollowing 
+                ? "btn-secondary" 
+                : "btn-primary"
+            )}
+          >
+            {isFollowing ? "Following" : "Follow"}
+          </button>
         </div>
       </div>
 
@@ -210,10 +342,18 @@ export const VideoCard = ({
               onClick={handleLike}
               className="flex flex-col items-center gap-1 group"
             >
-              <div className={`icon-button ${liked ? 'bg-red-500' : ''} transition-colors`}>
+              <div className={cn(
+                "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 min-h-[48px] min-w-[48px]",
+                liked 
+                  ? "bg-red-500 text-white scale-110" 
+                  : "icon-button active:scale-95"
+              )}>
                 <Heart 
                   size={24} 
-                  className={`${liked ? 'text-white fill-white animate-like' : 'text-white'}`} 
+                  className={cn(
+                    "transition-all duration-200",
+                    liked && "fill-current animate-like"
+                  )}
                 />
               </div>
               <span className="text-white text-xs font-medium">{formatCount(likeCount)}</span>
@@ -224,10 +364,32 @@ export const VideoCard = ({
               onClick={onComment}
               className="flex flex-col items-center gap-1"
             >
-              <div className="icon-button">
+              <div className="icon-button active:scale-95 min-h-[48px] min-w-[48px]">
                 <MessageCircle size={24} className="text-white" />
               </div>
               <span className="text-white text-xs font-medium">{formatCount(stats.comments)}</span>
+            </button>
+
+            {/* Revine */}
+            <button
+              onClick={handleRevine}
+              className="flex flex-col items-center gap-1"
+            >
+              <div className={cn(
+                "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 min-h-[48px] min-w-[48px]",
+                isRevined 
+                  ? "bg-green-500 text-white scale-110" 
+                  : "icon-button active:scale-95"
+              )}>
+                <Repeat2 
+                  size={24} 
+                  className={cn(
+                    "transition-all duration-200",
+                    isRevined && "animate-spin"
+                  )}
+                />
+              </div>
+              <span className="text-white text-xs font-medium">{formatCount(revineCount)}</span>
             </button>
 
             {/* Share */}
@@ -235,7 +397,7 @@ export const VideoCard = ({
               onClick={onShare}
               className="flex flex-col items-center gap-1"
             >
-              <div className="icon-button">
+              <div className="icon-button active:scale-95 min-h-[48px] min-w-[48px]">
                 <Share size={24} className="text-white" />
               </div>
               <span className="text-white text-xs font-medium">{formatCount(stats.shares)}</span>
