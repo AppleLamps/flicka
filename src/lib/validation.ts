@@ -69,6 +69,11 @@ export const searchSchema = z.object({
     .max(100, "Search query must be under 100 characters"),
 });
 
+// Password strength validation
+export const passwordSchema = z.string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain at least one lowercase letter, one uppercase letter, and one number");
+
 // Validation utilities
 export const validateVideoFile = (file: File): { valid: boolean; error?: string } => {
   try {
@@ -103,6 +108,18 @@ export const validateComment = (content: string): { valid: boolean; error?: stri
       return { valid: false, error: error.issues[0].message };
     }
     return { valid: false, error: "Invalid comment" };
+  }
+};
+
+export const validatePassword = (password: string): { valid: boolean; error?: string } => {
+  try {
+    passwordSchema.parse(password);
+    return { valid: true };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { valid: false, error: error.issues[0].message };
+    }
+    return { valid: false, error: "Invalid password" };
   }
 };
 

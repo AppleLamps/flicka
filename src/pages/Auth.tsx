@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Eye, EyeOff } from 'lucide-react';
+import { validatePassword } from '@/lib/validation';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -42,6 +43,17 @@ const Auth = () => {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate password strength
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.valid) {
+      toast({
+        title: "Weak password",
+        description: passwordValidation.error,
         variant: "destructive",
       });
       return;
