@@ -188,6 +188,7 @@ export const VideoCard = ({
         src={videoUrl}
         poster={thumbnailUrl}
         className="w-full h-full object-cover cursor-pointer"
+        preload="metadata"
         onClick={handleVideoTap}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
@@ -281,7 +282,7 @@ export const VideoCard = ({
           >
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden border-2 border-white/20">
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full object-cover" />
+                <img src={user.avatarUrl} alt={user.displayName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-primary/50 to-primary flex items-center justify-center">
                   <span className="text-white font-medium">{user.displayName[0]}</span>

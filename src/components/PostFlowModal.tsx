@@ -68,7 +68,7 @@ export const PostFlowModal = ({ isOpen, onClose, onPost, videoDuration }: PostFl
             <h2 className="text-lg font-semibold">Share Your Loop</h2>
             <p className="text-sm text-muted-foreground">{videoDuration.toFixed(1)}s video</p>
           </div>
-          <button onClick={onClose} className="icon-button">
+          <button onClick={onClose} className="icon-button" aria-label="Close post modal" title="Close">
             <X size={20} />
           </button>
         </div>

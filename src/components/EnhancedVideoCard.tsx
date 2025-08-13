@@ -39,6 +39,7 @@ interface VideoCardProps {
   onVisibilityChange?: (isVisible: boolean) => void;
   isMuted?: boolean;
   onToggleMute?: () => void;
+  onSave?: () => Promise<boolean> | boolean;
 }
 
 const EnhancedVideoCardBase = ({
@@ -63,6 +64,7 @@ const EnhancedVideoCardBase = ({
   onVisibilityChange,
   isMuted = true,
   onToggleMute
+  , onSave
 }: VideoCardProps) => {
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [progress, setProgress] = useState(0);
@@ -74,11 +76,16 @@ const EnhancedVideoCardBase = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isBufferingLocal, setIsBufferingLocal] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [showSavePulse, setShowSavePulse] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const intersectionRef = useRef<HTMLDivElement>(null);
   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
   const lastTap = useRef<number>(0);
+  const rVfcId = useRef<number | null>(null);
+  const rafId = useRef<number | null>(null);
+  const hlsRef = useRef<any | null>(null);
 
   // Enhanced follow state management
   const { 
@@ -116,27 +123,53 @@ const EnhancedVideoCardBase = ({
     // Register video ref with parent
     onVideoRef?.(video);
 
-    const updateProgress = () => {
-      const currentTime = video.currentTime;
-      const duration = video.duration;
-      if (duration > 0) {
-        const loopTime = currentTime % 6;
+    const compute = () => {
+      const t = video.currentTime;
+      const d = video.duration || 0;
+      if (d > 0) {
+        const loopTime = t % 6;
         setProgress((loopTime / 6) * 100);
       }
     };
 
-    const handleEnded = () => {
-      video.currentTime = 0;
-      setProgress(0);
-      video.play();
+    const stepRvfc = () => {
+      const v = video as any;
+      if (typeof v.requestVideoFrameCallback === 'function') {
+        rVfcId.current = v.requestVideoFrameCallback(() => {
+          compute();
+          stepRvfc();
+        });
+      }
+    };
+
+    const stepRaf = () => {
+      compute();
+      rafId.current = requestAnimationFrame(stepRaf);
     };
 
     const handlePlay = () => {
       setIsPlaying(true);
       setIsBufferingLocal(false);
       setHasError(false);
+      const v = video as any;
+      if (typeof v.requestVideoFrameCallback === 'function') {
+        stepRvfc();
+      } else {
+        stepRaf();
+      }
     };
-    const handlePause = () => setIsPlaying(false);
+    const handlePause = () => {
+      setIsPlaying(false);
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+      const v = video as any;
+      if (rVfcId.current !== null && typeof v.cancelVideoFrameCallback === 'function') {
+        v.cancelVideoFrameCallback(rVfcId.current);
+        rVfcId.current = null;
+      }
+    };
     const handleWaiting = () => setIsBufferingLocal(true);
     const handleStalled = () => setIsBufferingLocal(true);
     const handleSeeking = () => setIsBufferingLocal(true);
@@ -148,8 +181,7 @@ const EnhancedVideoCardBase = ({
       setIsPlaying(false);
     };
 
-    video.addEventListener('timeupdate', updateProgress);
-    video.addEventListener('ended', handleEnded);
+    video.addEventListener('timeupdate', () => {});
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('waiting', handleWaiting);
@@ -160,8 +192,15 @@ const EnhancedVideoCardBase = ({
     video.addEventListener('error', handleError);
 
     return () => {
-      video.removeEventListener('timeupdate', updateProgress);
-      video.removeEventListener('ended', handleEnded);
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+      const v = video as any;
+      if (rVfcId.current !== null && typeof v.cancelVideoFrameCallback === 'function') {
+        v.cancelVideoFrameCallback(rVfcId.current);
+        rVfcId.current = null;
+      }
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       video.removeEventListener('waiting', handleWaiting);
@@ -173,6 +212,64 @@ const EnhancedVideoCardBase = ({
       onVideoRef?.(null);
     };
   }, [onVideoRef]);
+
+  // HLS setup for .m3u8 URLs (adaptive bitrate streaming)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const isHls = typeof videoUrl === 'string' && videoUrl.includes('.m3u8');
+    if (!isHls) return;
+
+    let destroyed = false;
+
+    const setup = async () => {
+      // Native HLS support (Safari/iOS)
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        try {
+          video.src = videoUrl;
+          video.load();
+        } catch {}
+        return;
+      }
+
+      try {
+        const mod = await import('hls.js');
+        const Hls = (mod as any).default || mod;
+        if (Hls && Hls.isSupported && Hls.isSupported()) {
+          const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+          hlsRef.current = hls;
+          hls.attachMedia(video);
+          hls.loadSource(videoUrl);
+          hls.on(Hls.Events.ERROR, (_evt: any, data: any) => {
+            if (data?.fatal) {
+              setHasError(true);
+              try { hls.destroy(); } catch {}
+              hlsRef.current = null;
+            }
+          });
+        } else {
+          video.src = videoUrl;
+          video.load();
+        }
+      } catch {
+        try {
+          video.src = videoUrl;
+          video.load();
+        } catch {}
+      }
+    };
+
+    setup();
+
+    return () => {
+      if (destroyed) return;
+      destroyed = true;
+      if (hlsRef.current) {
+        try { hlsRef.current.destroy(); } catch {}
+        hlsRef.current = null;
+      }
+    };
+  }, [videoUrl]);
 
   // Enhanced interaction handlers
   const handleVideoTap = useCallback(() => {
@@ -198,11 +295,20 @@ const EnhancedVideoCardBase = ({
   }, [isMuted, onToggleMute]);
 
   const handleLongPress = useCallback(() => {
-    longPressTimeout.current = setTimeout(() => {
-      setShowQuickActions(true);
+    longPressTimeout.current = setTimeout(async () => {
+      let next = !isSaved;
+      if (onSave) {
+        try {
+          const result = await onSave();
+          if (typeof result === 'boolean') next = result;
+        } catch {}
+      }
+      setIsSaved(next);
+      setShowSavePulse(true);
       triggerHaptic?.('heavy');
+      setTimeout(() => setShowSavePulse(false), 800);
     }, 500);
-  }, [triggerHaptic]);
+  }, [isSaved, onSave, triggerHaptic]);
 
   const handleTouchEnd = useCallback(() => {
     if (longPressTimeout.current) {
@@ -269,7 +375,7 @@ const EnhancedVideoCardBase = ({
       <div className="relative w-full h-full">
         <video
           ref={videoRef}
-          src={videoUrl}
+          src={typeof videoUrl === 'string' && videoUrl.includes('.m3u8') ? undefined : videoUrl}
           poster={thumbnailUrl}
           className="w-full h-full object-cover cursor-pointer"
           onClick={handleVideoTap}
@@ -322,8 +428,55 @@ const EnhancedVideoCardBase = ({
         </div>
       )}
 
-      {/* Enhanced Progress Ring */}
-      <div className="absolute top-4 right-4">
+      {/* Enhanced Progress Ring with seeking */}
+      <div
+        className="absolute top-4 right-4"
+        onClick={(e) => {
+          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = e.clientX - cx;
+          const dy = e.clientY - cy;
+          let angle = Math.atan2(dy, dx);
+          if (angle < 0) angle += Math.PI * 2;
+          const ratio = angle / (Math.PI * 2);
+          const v = videoRef.current;
+          if (v) {
+            const loopBase = Math.floor((v.currentTime || 0) / 6) * 6;
+            const newTime = loopBase + Math.max(0, Math.min(1, ratio)) * 6;
+            if (Number.isFinite(newTime)) {
+              v.currentTime = Math.min(v.duration || newTime, newTime);
+            }
+          }
+          e.stopPropagation();
+        }}
+        onTouchStart={(e) => {
+          if (e.touches.length === 0) return;
+          const t = e.touches[0];
+          const target = e.currentTarget as HTMLDivElement;
+          const rect = target.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          const dx = t.clientX - cx;
+          const dy = t.clientY - cy;
+          let angle = Math.atan2(dy, dx);
+          if (angle < 0) angle += Math.PI * 2;
+          const ratio = angle / (Math.PI * 2);
+          const v = videoRef.current;
+          if (v) {
+            const loopBase = Math.floor((v.currentTime || 0) / 6) * 6;
+            const newTime = loopBase + Math.max(0, Math.min(1, ratio)) * 6;
+            if (Number.isFinite(newTime)) {
+              v.currentTime = Math.min(v.duration || newTime, newTime);
+            }
+          }
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+        title="Seek"
+        aria-label="Seek"
+        role="button"
+      >
         <svg className="w-8 h-8 progress-ring" viewBox="0 0 32 32">
           <circle
             cx="16"
@@ -345,6 +498,14 @@ const EnhancedVideoCardBase = ({
           />
         </svg>
       </div>
+      {/* Long-press Save pulse */}
+      {showSavePulse && (
+        <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <div className="w-20 h-20 rounded-full glass-surface flex items-center justify-center animate-like">
+            <Bookmark size={28} className={cn("", isSaved ? "text-white" : "text-white/70")} />
+          </div>
+        </div>
+      )}
 
       {/* Mute/Unmute control */}
       <div className="absolute top-4 left-4">

@@ -112,6 +112,8 @@ export const VideoDetailModal = ({
             <button
               onClick={onClose}
               className="icon-button"
+              aria-label="Close video"
+              title="Close"
             >
               <X size={24} className="text-white" />
             </button>
@@ -120,11 +122,13 @@ export const VideoDetailModal = ({
               <button
                 onClick={onShare}
                 className="icon-button"
+                aria-label="Share"
+                title="Share"
               >
                 <Share size={24} className="text-white" />
               </button>
               
-              <button className="icon-button">
+              <button className="icon-button" aria-label="More options" title="More options">
                 <MoreHorizontal size={24} className="text-white" />
               </button>
             </div>
@@ -224,6 +228,8 @@ export const VideoDetailModal = ({
                       <button
                         onClick={() => onCommentLike?.(comment.id)}
                         className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+                        aria-label={comment.isLiked ? 'Unlike comment' : 'Like comment'}
+                        title={comment.isLiked ? 'Unlike' : 'Like'}
                       >
                         <Heart size={14} className={comment.isLiked ? "fill-current text-red-500" : ""} />
                         <span className="text-xs">{comment.likes}</span>
@@ -291,6 +297,8 @@ export const VideoDetailModal = ({
               type="submit"
               disabled={!commentText.trim() || isLoading}
               className="icon-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Post comment"
+              title="Post comment"
             >
               <Send size={16} />
             </button>

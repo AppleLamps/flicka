@@ -1,8 +1,8 @@
-import { Home, Compass, Camera, Bell, User } from "lucide-react";
+import { Home, Compass, Camera, Bell, User, Bookmark } from "lucide-react";
 
 interface BottomNavigationProps {
-  activeTab: 'home' | 'explore' | 'capture' | 'notifications' | 'profile';
-  onTabChange: (tab: 'home' | 'explore' | 'capture' | 'notifications' | 'profile') => void;
+  activeTab: 'home' | 'explore' | 'capture' | 'notifications' | 'saved' | 'profile';
+  onTabChange: (tab: 'home' | 'explore' | 'capture' | 'notifications' | 'saved' | 'profile') => void;
   hasNotifications?: boolean;
 }
 
@@ -16,6 +16,7 @@ export const BottomNavigation = ({
     { id: 'explore' as const, icon: Compass, label: 'Explore' },
     { id: 'capture' as const, icon: Camera, label: 'Capture', isPrimary: true },
     { id: 'notifications' as const, icon: Bell, label: 'Notifications', hasIndicator: hasNotifications },
+    { id: 'saved' as const, icon: Bookmark, label: 'Saved' },
     { id: 'profile' as const, icon: User, label: 'Profile' },
   ];
 

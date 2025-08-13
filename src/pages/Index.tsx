@@ -21,18 +21,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { SearchModal } from "@/components/SearchModal";
 import { UserProfile } from "@/components/UserProfile";
 import { Virtuoso } from "react-virtuoso";
+import SavedPage from "./Saved";
 // import { InfiniteScroll } from "@/components/InfiniteScroll"; // Replaced by Virtuoso virtualization
 import { SampleDataButton } from "@/components/SampleDataButton";
 
 
 const Index = () => {
   const { user, loading: authLoading, profile, signOut } = useAuth();
-  const { toggleLike, toggleFollow, toggleRevine, addComment } = useSocialFeatures();
+  const { toggleLike, toggleFollow, toggleRevine, toggleSave, addComment } = useSocialFeatures();
   
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'capture' | 'notifications' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'capture' | 'notifications' | 'saved' | 'profile'>('home');
   const [showCapture, setShowCapture] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
@@ -245,6 +246,24 @@ const Index = () => {
     registerVideo(videoId, element);
   }, [registerVideo]);
 
+  // Desktop keyboard navigation (Up/Down arrow to snap to previous/next video)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (activeTab !== 'home') return;
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        const next = Math.min(videos.length - 1, currentVideoIndex + 1);
+        const el = document.getElementById(`feed-item-${next}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        const prev = Math.max(0, currentVideoIndex - 1);
+        const el = document.getElementById(`feed-item-${prev}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeTab, currentVideoIndex, videos.length]);
+
   const handleVideoVisibilityChange = useCallback((videoId: string, index: number, isVisible: boolean) => {
     updateVideoVisibility(videoId, isVisible, index);
     
@@ -315,7 +334,7 @@ const Index = () => {
               key={video.id}
               data-video-id={video.id}
                 id={`feed-item-${index}`}
-                className="w-full h-screen snap-start snap-always"
+                className="feed-item will-change-transform w-full h-screen snap-start snap-always"
             >
               <EnhancedVideoCard
                 id={video.id}
@@ -348,6 +367,7 @@ const Index = () => {
                 onLike={() => toggleLike(video.id)}
                 onShare={() => handleShare(video)}
                 onRevine={() => toggleRevine(video.id)}
+                onSave={() => toggleSave(video.id)}
                 onVideoRef={(element) => handleVideoRef(video.id, element)}
                 onVisibilityChange={(isVisible) => handleVideoVisibilityChange(video.id, index, isVisible)}
                 triggerHaptic={triggerHaptic}
@@ -364,6 +384,12 @@ const Index = () => {
           <h2 className="text-2xl font-bold mb-4">Explore</h2>
           <p className="text-muted-foreground">Discover trending loops and creators</p>
         </div>
+      );
+    }
+
+    if (activeTab === 'saved') {
+      return (
+        <SavedPage />
       );
     }
 

@@ -78,6 +78,13 @@ export const VideoDetailSheet = ({
     };
   }, [isOpen]);
 
+  // Reflect drag offset into CSS variable to avoid inline styles in JSX
+  useEffect(() => {
+    if (sheetRef.current) {
+      sheetRef.current.style.setProperty('--sheet-offset', `${dragOffset}px`);
+    }
+  }, [dragOffset]);
+
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -143,12 +150,8 @@ export const VideoDetailSheet = ({
       {/* Bottom Sheet */}
       <div
         ref={sheetRef}
-        className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl overflow-hidden animate-slide-in-right"
-        style={{
-          height: '70vh',
-          transform: `translateY(${dragOffset}px)`,
-          transition: dragStartY ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-        }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl overflow-hidden animate-slide-in-right video-detail-sheet"
+        data-dragging={dragStartY ? 'true' : 'false'}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -168,13 +171,13 @@ export const VideoDetailSheet = ({
           </div>
           
           <div className="flex items-center gap-2">
-            <button onClick={onShare} className="icon-button">
+            <button onClick={onShare} className="icon-button" aria-label="Share" title="Share">
               <Share size={20} />
             </button>
-            <button className="icon-button">
+            <button className="icon-button" aria-label="More options" title="More options">
               <MoreHorizontal size={20} />
             </button>
-            <button onClick={onClose} className="icon-button">
+            <button onClick={onClose} className="icon-button" aria-label="Close" title="Close">
               <X size={20} />
             </button>
           </div>
@@ -212,7 +215,7 @@ export const VideoDetailSheet = ({
                 <div key={comment.id} className="flex gap-3">
                   <div className="w-8 h-8 rounded-full bg-muted overflow-hidden flex-shrink-0">
                     {comment.user.avatarUrl ? (
-                      <img src={comment.user.avatarUrl} alt={comment.user.displayName} className="w-full h-full object-cover" />
+                      <img src={comment.user.avatarUrl} alt={comment.user.displayName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-primary/50 to-primary flex items-center justify-center">
                         <span className="text-white text-xs font-medium">{comment.user.displayName[0]}</span>
@@ -240,6 +243,8 @@ export const VideoDetailSheet = ({
                           }
                         }}
                         className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
+                        aria-label={comment.isLiked ? 'Unlike comment' : 'Like comment'}
+                        title={comment.isLiked ? 'Unlike' : 'Like'}
                       >
                         <Heart size={14} className={comment.isLiked ? "fill-current text-red-500" : ""} />
                         <span className="text-xs">{comment.likes}</span>
@@ -257,7 +262,7 @@ export const VideoDetailSheet = ({
                           <div key={reply.id} className="flex gap-2">
                             <div className="w-6 h-6 rounded-full bg-muted overflow-hidden flex-shrink-0">
                               {reply.user.avatarUrl ? (
-                                <img src={reply.user.avatarUrl} alt={reply.user.displayName} className="w-full h-full object-cover" />
+                                <img src={reply.user.avatarUrl} alt={reply.user.displayName} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                               ) : (
                                 <div className="w-full h-full bg-gradient-to-br from-primary/50 to-primary flex items-center justify-center">
                                   <span className="text-white text-xs font-medium">{reply.user.displayName[0]}</span>
@@ -307,6 +312,8 @@ export const VideoDetailSheet = ({
               type="submit"
               disabled={!commentText.trim() || isSubmitting}
               className="icon-button-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Post comment"
+              title="Post comment"
             >
               {isSubmitting ? (
                 <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />

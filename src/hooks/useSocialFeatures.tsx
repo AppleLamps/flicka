@@ -161,6 +161,51 @@ export const useSocialFeatures = () => {
     }
   };
 
+  const toggleSave = async (videoId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to save videos",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      const { data: existing } = await supabase
+        .from('saved_videos')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('video_id', videoId)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('saved_videos')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', videoId);
+        if (error) throw error;
+        toast({ title: 'Removed from saved' });
+        return false;
+      } else {
+        const { error } = await supabase
+          .from('saved_videos')
+          .insert({ user_id: user.id, video_id: videoId });
+        if (error) throw error;
+        toast({ title: 'Saved', description: 'Added to your saved videos' });
+        return true;
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to update saved videos',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
   const postVideo = async (videoData: {
     title?: string;
     description?: string;
@@ -308,6 +353,7 @@ export const useSocialFeatures = () => {
     toggleLike,
     toggleFollow,
     toggleRevine,
+    toggleSave,
     postVideo,
     uploadVideo,
     uploadThumbnail,

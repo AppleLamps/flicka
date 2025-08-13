@@ -505,8 +505,7 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
                     aria-label={`Progress segment ${i+1}`}
                     className={`h-full transition-all duration-100 ${
                       isRecordingSegment ? 'bg-red-500' : 'bg-primary'
-                    } w-[var(--w)]`}
-                    style={{ ['--w' as any]: `${segmentProgress}%` }}
+                    } ${`w-pct-${Math.round(segmentProgress)}`}`}
                   />
                 </div>
               );
