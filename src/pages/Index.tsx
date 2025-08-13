@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { TopAppBar } from "@/components/TopAppBar";
-import { VideoCard } from "@/components/VideoCard";
+import { EnhancedVideoCard } from "@/components/EnhancedVideoCard";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CaptureScreen } from "@/components/CaptureScreen";
 import { VideoDetailSheet } from "@/components/VideoDetailSheet";
@@ -8,6 +8,7 @@ import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { HomeFeedEmpty, ExploreEmpty, NotificationsEmpty, NetworkError } from "@/components/EmptyStates";
 import { useErrorBoundary, useNetworkStatus } from "@/hooks/useErrorBoundary";
 import { useReducedMotion } from "@/hooks/useAccessibility";
+import { useVideoManager } from "@/hooks/useVideoManager";
 
 // Mock data
 const mockVideos = [
@@ -118,13 +119,26 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'capture' | 'notifications' | 'profile'>('home');
   const [showCapture, setShowCapture] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<typeof mockVideos[0] | null>(null);
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [scrollY, setScrollY] = useState(0);
-  const [playingVideo, setPlayingVideo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Enhanced video management
+  const {
+    registerVideo,
+    updateVideoVisibility,
+    playVideo,
+    pauseVideo,
+    pauseAllVideos,
+    preloadVideo,
+    isBuffering,
+    networkType,
+    currentVideoIndex
+  } = useVideoManager({
+    preloadDistance: 2,
+    maxActiveVideos: 5,
+    networkAware: true
+  });
   
   // Accessibility and error handling hooks
   const { error, handleNetworkError, clearError, retry } = useErrorBoundary();
@@ -159,42 +173,33 @@ const Index = () => {
     }
   }, [isOnline, handleNetworkError, clearError]);
 
-  // Auto-play video management with IntersectionObserver
+  // Enhanced video management with preloading
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const videoId = entry.target.getAttribute('data-video-id');
-          const video = videoRefs.current[videoId!];
-          
-          if (entry.isIntersecting && entry.intersectionRatio > 0.7) {
-            // Video is mostly visible, play it
-            if (video && playingVideo !== videoId) {
-              // Pause currently playing video
-              if (playingVideo && videoRefs.current[playingVideo]) {
-                videoRefs.current[playingVideo].pause();
-              }
-              setPlayingVideo(videoId);
-              video.play().catch(() => {});
-            }
-          } else if (video && playingVideo === videoId) {
-            // Video is not visible, pause it
-            video.pause();
-            setPlayingVideo(null);
-          }
-        });
-      },
-      { threshold: [0.7] }
-    );
+    // Preload adjacent videos
+    const preloadAdjacent = () => {
+      mockVideos.forEach((video, index) => {
+        const distance = Math.abs(index - currentVideoIndex);
+        if (distance <= 2 && distance > 0) {
+          const priority = distance === 1 ? 'high' : 'medium';
+          preloadVideo(video.id, video.videoUrl, priority);
+        }
+      });
+    };
 
-    // Observe all video cards
-    if (containerRef.current) {
-      const videoCards = containerRef.current.querySelectorAll('[data-video-id]');
-      videoCards.forEach((card) => observer.observe(card));
-    }
+    preloadAdjacent();
+  }, [currentVideoIndex, preloadVideo]);
 
-    return () => observer.disconnect();
-  }, [playingVideo]);
+  // Background tab handling - pause all videos when tab becomes inactive
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pauseAllVideos();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [pauseAllVideos]);
 
   // Handle scroll for Top App Bar blur effect
   useEffect(() => {
@@ -253,12 +258,18 @@ const Index = () => {
   };
 
   const handleVideoRef = useCallback((videoId: string, element: HTMLVideoElement | null) => {
-    if (element) {
-      videoRefs.current[videoId] = element;
+    registerVideo(videoId, element);
+  }, [registerVideo]);
+
+  const handleVideoVisibilityChange = useCallback((videoId: string, index: number, isVisible: boolean) => {
+    updateVideoVisibility(videoId, isVisible, index);
+    
+    if (isVisible) {
+      playVideo(videoId);
     } else {
-      delete videoRefs.current[videoId];
+      pauseVideo(videoId);
     }
-  }, []);
+  }, [updateVideoVisibility, playVideo, pauseVideo]);
 
   // Show capture screen
   if (showCapture) {
@@ -298,16 +309,22 @@ const Index = () => {
               data-video-id={video.id}
               className="w-full h-screen snap-start"
             >
-              <VideoCard
+              <EnhancedVideoCard
                 {...video}
+                user={{
+                  ...video.user,
+                  isVerified: video.user.username === 'creativeartist',
+                  isPrivate: video.user.username === 'urbandancer'
+                }}
                 autoPlay={index === currentVideoIndex}
+                isBuffering={isBuffering[video.id] || false}
                 onComment={() => handleVideoComment(video.id)}
                 onUserClick={() => console.log('User clicked:', video.user.username)}
                 onLike={() => console.log('Like video:', video.id)}
                 onShare={() => console.log('Share video:', video.id)}
                 onRevine={() => console.log('Revine video:', video.id)}
-                onFollow={() => console.log('Follow user:', video.user.id)}
                 onVideoRef={(element) => handleVideoRef(video.id, element)}
+                onVisibilityChange={(isVisible) => handleVideoVisibilityChange(video.id, index, isVisible)}
                 triggerHaptic={triggerHaptic}
               />
             </div>
