@@ -306,7 +306,7 @@ const Index = () => {
     if (activeTab === 'home') {
       return (
         <Virtuoso
-          style={{ height: 'calc(100vh - 144px)' }}
+          useWindowScroll
           data={videos}
           endReached={loadMore}
           increaseViewportBy={{ top: 200, bottom: 200 }}
