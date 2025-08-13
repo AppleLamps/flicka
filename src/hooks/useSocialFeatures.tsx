@@ -235,6 +235,35 @@ export const useSocialFeatures = () => {
     }
   };
 
+  const uploadThumbnail = async (blob: Blob) => {
+    if (!user) return null;
+
+    try {
+      const fileName = `${user.id}/thumbnails/${Date.now()}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(fileName, blob, {
+          contentType: 'image/jpeg'
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('videos')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to upload thumbnail",
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   const addComment = async (videoId: string, content: string) => {
     if (!user) {
       toast({
@@ -281,6 +310,7 @@ export const useSocialFeatures = () => {
     toggleRevine,
     postVideo,
     uploadVideo,
+    uploadThumbnail,
     addComment,
   };
 };

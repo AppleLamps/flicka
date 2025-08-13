@@ -31,7 +31,7 @@ interface VideoClip {
 }
 
 export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
-  const { uploadVideo, postVideo } = useSocialFeatures();
+  const { uploadVideo, uploadThumbnail, postVideo } = useSocialFeatures();
   const { toast } = useToast();
   
   // Mode state
@@ -230,18 +230,84 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
         description: "Please wait while we process your video.",
       });
 
-      // Upload video to storage
-      const videoUrl = await uploadVideo(videoFile);
-      
+      // Generate a thumbnail from the first frame
+      const generateThumbnailFromFile = (file: File) =>
+        new Promise<Blob | null>((resolve) => {
+          try {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.muted = true;
+            (video as any).playsInline = true;
+            const objectUrl = URL.createObjectURL(file);
+            video.src = objectUrl;
+
+            const cleanup = () => {
+              URL.revokeObjectURL(objectUrl);
+            };
+
+            const capture = () => {
+              try {
+                const width = video.videoWidth || 480;
+                const height = video.videoHeight || 852;
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                  cleanup();
+                  resolve(null);
+                  return;
+                }
+                ctx.drawImage(video, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                  cleanup();
+                  resolve(blob);
+                }, 'image/jpeg', 0.8);
+              } catch (_) {
+                cleanup();
+                resolve(null);
+              }
+            };
+
+            video.addEventListener('loadeddata', () => {
+              try {
+                // Nudge to a tiny offset to avoid black frames in some codecs
+                video.currentTime = Math.min(0.1, (video.duration || 1) - 0.1);
+              } catch (_) {
+                // If seeking throws, capture immediately
+                capture();
+              }
+            });
+            video.addEventListener('seeked', capture, { once: true });
+            video.addEventListener('error', () => {
+              cleanup();
+              resolve(null);
+            }, { once: true });
+          } catch (_) {
+            resolve(null);
+          }
+        });
+
+      const [videoUrl, thumbBlob] = await Promise.all([
+        uploadVideo(videoFile),
+        generateThumbnailFromFile(videoFile)
+      ]);
+
       if (!videoUrl) {
         throw new Error('Failed to upload video');
       }
 
-      // Post video with metadata
+      let thumbnailUrl: string | null = null;
+      if (thumbBlob) {
+        thumbnailUrl = await uploadThumbnail(thumbBlob);
+      }
+
+      // Post video with metadata (include thumbnail if available)
       const result = await postVideo({
         title: postData.caption.substring(0, 100),
         description: postData.caption,
         video_url: videoUrl,
+        thumbnail_url: thumbnailUrl || undefined,
         duration: Math.round(totalDuration),
         hashtags: postData.hashtags,
         audio_title: postData.audioTitle,
@@ -347,6 +413,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
             <button
               onClick={onClose}
               className="icon-button"
+              aria-label="Close"
+              title="Close"
             >
               <X size={24} className="text-white" />
             </button>
@@ -355,6 +423,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               <button
                 onClick={() => setHasFlash(!hasFlash)}
                 className={`icon-button ${hasFlash ? 'bg-primary' : ''}`}
+                aria-label="Toggle flash"
+                title="Toggle flash"
               >
                 <Zap size={20} className="text-white" />
               </button>
@@ -362,6 +432,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               <button
                 onClick={() => setHasTimer(!hasTimer)}
                 className={`icon-button ${hasTimer ? 'bg-primary' : ''}`}
+                aria-label="Toggle timer"
+                title="Toggle timer"
               >
                 <Timer size={20} className="text-white" />
               </button>
@@ -369,6 +441,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               <button
                 onClick={() => setSpeed(speed === 1 ? 0.5 : speed === 0.5 ? 2 : 1)}
                 className="icon-button"
+                aria-label="Change speed"
+                title="Change speed"
               >
                 <Gauge size={20} className="text-white" />
                 <span className="absolute -bottom-1 text-xs text-white">
@@ -379,6 +453,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               <button
                 onClick={() => setHasAlignment(!hasAlignment)}
                 className={`icon-button ${hasAlignment ? 'bg-primary' : ''}`}
+                aria-label="Toggle alignment grid"
+                title="Toggle alignment grid"
               >
                 <AlignCenter size={20} className="text-white" />
               </button>
@@ -386,6 +462,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               <button
                 onClick={() => setIsMuted(!isMuted)}
                 className={`icon-button ${isMuted ? 'bg-red-500' : ''}`}
+                aria-label="Toggle mute"
+                title="Toggle mute"
               >
                 {isMuted ? <VolumeX size={20} className="text-white" /> : <Volume2 size={20} className="text-white" />}
               </button>
@@ -393,6 +471,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               <button
                 onClick={() => setHasAutoCaptions(!hasAutoCaptions)}
                 className={`icon-button ${hasAutoCaptions ? 'bg-primary' : ''}`}
+                aria-label="Toggle auto captions"
+                title="Toggle auto captions"
               >
                 <Captions size={20} className="text-white" />
               </button>
@@ -432,6 +512,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
           <button
             onClick={flipCamera}
             className="icon-button"
+            aria-label="Flip camera"
+            title="Flip camera"
           >
             <RotateCcw size={24} className="text-white" />
           </button>
@@ -461,6 +543,8 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
                 ${isRecording ? 'recording' : ''}
                 ${!canRecord ? 'opacity-50' : ''}
               `}
+            aria-label="Record"
+            title="Record"
             >
               {countdown > 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-white font-bold">

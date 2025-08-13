@@ -168,6 +168,8 @@ export const SearchModal = ({ open, onOpenChange, onVideoSelect }: SearchModalPr
               <button
                 onClick={() => setQuery('')}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+                title="Clear search"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -291,13 +293,11 @@ export const SearchModal = ({ open, onOpenChange, onVideoSelect }: SearchModalPr
                         className="w-full flex items-start gap-3 p-3 rounded-lg hover:bg-muted/20 transition-colors text-left"
                       >
                         <div className="w-16 h-12 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
-                          {video.thumbnail_url && (
-                            <img
-                              src={video.thumbnail_url}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          )}
+                          <img
+                            src={video.thumbnail_url || '/placeholder.svg'}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{video.title || 'Untitled'}</p>

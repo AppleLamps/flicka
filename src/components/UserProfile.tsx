@@ -368,13 +368,11 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
                   onClick={() => onVideoSelect?.(video)}
                   className="aspect-[9/16] bg-muted rounded-lg overflow-hidden relative group"
                 >
-                  {video.thumbnail_url && (
-                    <img
-                      src={video.thumbnail_url}
-                      alt=""
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                    />
-                  )}
+                  <img
+                    src={video.thumbnail_url || '/placeholder.svg'}
+                    alt=""
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
                   <div className="absolute bottom-2 left-2 right-2">
                     {video.title && (
