@@ -10,9 +10,12 @@ import {
   VolumeX,
   CheckCircle,
   AlertCircle,
-  Captions
+  Captions,
+  Upload,
+  Camera
 } from "lucide-react";
 import { PostFlowModal } from "./PostFlowModal";
+import { VideoUploadArea } from "./VideoUploadArea";
 import { useSocialFeatures } from "@/hooks/useSocialFeatures";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,6 +33,12 @@ interface VideoClip {
 export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
   const { uploadVideo, postVideo } = useSocialFeatures();
   const { toast } = useToast();
+  
+  // Mode state
+  const [mode, setMode] = useState('record');
+  const [uploadedFile, setUploadedFile] = useState<{ file: File; duration: number } | null>(null);
+  
+  // Recording state
   const [isRecording, setIsRecording] = useState(false);
   const [clips, setClips] = useState<VideoClip[]>([]);
   const [totalDuration, setTotalDuration] = useState(0);
@@ -185,8 +194,14 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
     }
   };
 
+  const handleFileSelected = (file: File, duration: number) => {
+    setUploadedFile({ file, duration });
+    setTotalDuration(duration);
+    setShowPostFlow(true);
+  };
+
   const handleShowPostFlow = () => {
-    if (totalDuration > 0) {
+    if (totalDuration > 0 || uploadedFile) {
       setShowPostFlow(true);
     }
   };
@@ -197,13 +212,18 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
     audioTitle?: string;
   }) => {
     try {
-      if (clips.length === 0) return;
+      let videoFile: File;
 
-      // Combine all clips into one video blob
-      const combinedBlob = new Blob(clips.map(clip => clip.data), { type: 'video/webm' });
-      
-      // Convert to File for upload
-      const videoFile = new File([combinedBlob], `video-${Date.now()}.webm`, { type: 'video/webm' });
+      if (uploadedFile) {
+        // Use uploaded file
+        videoFile = uploadedFile.file;
+      } else if (clips.length > 0) {
+        // Combine recorded clips
+        const combinedBlob = new Blob(clips.map(clip => clip.data), { type: 'video/webm' });
+        videoFile = new File([combinedBlob], `video-${Date.now()}.webm`, { type: 'video/webm' });
+      } else {
+        return;
+      }
 
       toast({
         title: "Uploading video...",
@@ -249,8 +269,48 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
   const canRecord = totalDuration < MAX_DURATION;
   const progressPercentage = (totalDuration / MAX_DURATION) * 100;
 
+  // Show upload area when in upload mode
+  if (mode === 'upload') {
+    return (
+      <div className="fixed inset-0 z-50 bg-background">
+        <VideoUploadArea 
+          onFileSelected={handleFileSelected}
+          onCancel={() => setMode('record')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 bg-black">
+      {/* Mode Toggle */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-20">
+        <div className="flex bg-black/50 rounded-full p-1 backdrop-blur-sm">
+          <button
+            onClick={() => setMode('record')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              mode !== 'upload'
+                ? 'bg-white text-black' 
+                : 'text-white hover:text-white/80'
+            }`}
+          >
+            <Camera size={16} className="mr-2 inline" />
+            Record
+          </button>
+          <button
+            onClick={() => setMode('upload')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              mode !== 'record'
+                ? 'bg-white text-black' 
+                : 'text-white hover:text-white/80'
+            }`}
+          >
+            <Upload size={16} className="mr-2 inline" />
+            Upload
+          </button>
+        </div>
+      </div>
+
       {/* Camera View */}
       <div className="relative w-full h-full">
         <video
@@ -341,7 +401,7 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
         </div>
 
         {/* Progress Bar */}
-        <div className="absolute top-20 left-4 right-4">
+        <div className="absolute top-32 left-4 right-4">
           <div className="flex gap-1">
             {Array.from({ length: SEGMENT_COUNT }).map((_, i) => {
               const segmentProgress = Math.max(0, Math.min(100, (progressPercentage - (i * (100 / SEGMENT_COUNT))) * (SEGMENT_COUNT)));
@@ -412,10 +472,10 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
             {/* Post Button */}
             <button
               onClick={handleShowPostFlow}
-              disabled={totalDuration === 0}
+              disabled={totalDuration === 0 && !uploadedFile}
               className="btn-primary disabled:opacity-50"
             >
-              {totalDuration >= MAX_DURATION ? (
+              {totalDuration >= MAX_DURATION || uploadedFile ? (
                 <CheckCircle size={20} className="mr-2" />
               ) : totalDuration > 0 ? (
                 <AlertCircle size={20} className="mr-2" />
@@ -430,7 +490,7 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               {isRecording 
                 ? "Recording... Release to stop" 
                 : canRecord 
-                  ? "Hold to record" 
+                  ? "Hold to record or tap Upload above" 
                   : "Ready to post"
               }
             </p>
