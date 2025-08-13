@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { TopAppBar } from "@/components/TopAppBar";
 import { EnhancedVideoCard } from "@/components/EnhancedVideoCard";
 import { BottomNavigation } from "@/components/BottomNavigation";
@@ -6,9 +7,14 @@ import { CaptureScreen } from "@/components/CaptureScreen";
 import { VideoDetailSheet } from "@/components/VideoDetailSheet";
 import { FeedSkeleton } from "@/components/SkeletonLoader";
 import { HomeFeedEmpty, ExploreEmpty, NotificationsEmpty, NetworkError } from "@/components/EmptyStates";
+import { ProfileEditModal } from "@/components/ProfileEditModal";
 import { useErrorBoundary, useNetworkStatus } from "@/hooks/useErrorBoundary";
 import { useReducedMotion } from "@/hooks/useAccessibility";
 import { useVideoManager } from "@/hooks/useVideoManager";
+import { useAuth } from "@/hooks/useAuth";
+import { useSocialFeatures } from "@/hooks/useSocialFeatures";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 // Mock data
 const mockVideos = [
@@ -116,12 +122,26 @@ const mockComments = [
 ];
 
 const Index = () => {
+  const { user, loading: authLoading, profile, signOut } = useAuth();
+  const { toggleLike, toggleFollow, addComment } = useSocialFeatures();
+  const navigate = useNavigate();
+  
   const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'capture' | 'notifications' | 'profile'>('home');
   const [showCapture, setShowCapture] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<typeof mockVideos[0] | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [videos, setVideos] = useState<any[]>([]);
+  const [realTimeComments, setRealTimeComments] = useState<any[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [authLoading, user, navigate]);
   
   // Enhanced video management
   const {
@@ -343,10 +363,58 @@ const Index = () => {
     }
 
     if (activeTab === 'profile') {
+      if (!profile) {
+        return <FeedSkeleton count={1} />;
+      }
+      
       return (
-        <div className="p-4 text-center">
-          <h2 className="text-2xl font-bold mb-4">Profile</h2>
-          <p className="text-muted-foreground">Your loops and profile settings</p>
+        <div className="p-6 max-w-md mx-auto">
+          <div className="text-center mb-6">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold">
+              {profile.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                profile.display_name?.[0]?.toUpperCase() || 'U'
+              )}
+            </div>
+            <h2 className="text-xl font-bold">{profile.display_name}</h2>
+            <p className="text-muted-foreground">@{profile.username}</p>
+            {profile.bio && (
+              <p className="text-sm text-muted-foreground mt-2">{profile.bio}</p>
+            )}
+            
+            <div className="flex justify-center space-x-6 mt-4">
+              <div className="text-center">
+                <div className="font-bold">{profile.videos_count || 0}</div>
+                <div className="text-sm text-muted-foreground">Loops</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold">{profile.followers_count || 0}</div>
+                <div className="text-sm text-muted-foreground">Followers</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold">{profile.following_count || 0}</div>
+                <div className="text-sm text-muted-foreground">Following</div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <Button 
+              onClick={() => setShowProfileEdit(true)} 
+              variant="outline" 
+              className="w-full"
+            >
+              Edit Profile
+            </Button>
+            <Button 
+              onClick={signOut} 
+              variant="destructive" 
+              className="w-full"
+            >
+              Sign Out
+            </Button>
+          </div>
         </div>
       );
     }
@@ -388,6 +456,12 @@ const Index = () => {
           onCommentLike={handleCommentLike}
         />
       )}
+
+      {/* Profile Edit Modal */}
+      <ProfileEditModal
+        isOpen={showProfileEdit}
+        onClose={() => setShowProfileEdit(false)}
+      />
     </div>
   );
 };
