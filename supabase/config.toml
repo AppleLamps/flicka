@@ -1,1 +1,4 @@
 project_id = "zkhafqpqobbqrelewxsk"
+
+[functions.create-sample-data]
+verify_jwt = false

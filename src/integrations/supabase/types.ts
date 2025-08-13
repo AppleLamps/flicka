@@ -137,6 +137,9 @@ export type Database = {
           followers_count: number | null
           following_count: number | null
           id: string
+          is_private: boolean | null
+          show_followers: boolean | null
+          show_following: boolean | null
           updated_at: string
           user_id: string
           username: string | null
@@ -150,6 +153,9 @@ export type Database = {
           followers_count?: number | null
           following_count?: number | null
           id?: string
+          is_private?: boolean | null
+          show_followers?: boolean | null
+          show_following?: boolean | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -163,6 +169,9 @@ export type Database = {
           followers_count?: number | null
           following_count?: number | null
           id?: string
+          is_private?: boolean | null
+          show_followers?: boolean | null
+          show_following?: boolean | null
           updated_at?: string
           user_id?: string
           username?: string | null

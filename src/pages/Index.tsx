@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SearchModal } from "@/components/SearchModal";
 import { UserProfile } from "@/components/UserProfile";
 import { InfiniteScroll } from "@/components/InfiniteScroll";
+import { SampleDataButton } from "@/components/SampleDataButton";
 
 
 const Index = () => {
@@ -243,7 +244,12 @@ const Index = () => {
 
     // Empty states for different tabs
     if (activeTab === "home" && videos.length === 0 && !videosLoading) {
-      return <HomeFeedEmpty onExplore={handleExplore} onCapture={handleCreateLoop} />;
+      return (
+        <div className="p-4 text-center">
+          <SampleDataButton />
+          <HomeFeedEmpty onExplore={handleExplore} onCapture={handleCreateLoop} />
+        </div>
+      );
     }
 
     if (activeTab === "explore" && videos.length === 0) {
