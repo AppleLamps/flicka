@@ -3,7 +3,7 @@ import { TopAppBar } from "@/components/TopAppBar";
 import { VideoCard } from "@/components/VideoCard";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CaptureScreen } from "@/components/CaptureScreen";
-import { VideoDetailModal } from "@/components/VideoDetailModal";
+import { VideoDetailSheet } from "@/components/VideoDetailSheet";
 
 // Mock data
 const mockVideos = [
@@ -284,16 +284,19 @@ const Index = () => {
         hasNotifications={true}
       />
 
-      {/* Video Detail Modal */}
-      <VideoDetailModal
-        isOpen={!!selectedVideo}
-        onClose={() => setSelectedVideo(null)}
-        video={selectedVideo!}
-        comments={mockComments}
-        onCommentSubmit={handleCommentSubmit}
-        onCommentLike={handleCommentLike}
-        onShare={() => console.log('Share from modal')}
-      />
+      {/* Video Detail Sheet */}
+      {selectedVideo && (
+        <VideoDetailSheet
+          isOpen={!!selectedVideo}
+          onClose={() => setSelectedVideo(null)}
+          video={selectedVideo}
+          comments={mockComments}
+          isLoadingComments={false}
+          onShare={() => console.log('Share video')}
+          onCommentSubmit={handleCommentSubmit}
+          onCommentLike={handleCommentLike}
+        />
+      )}
     </div>
   );
 };

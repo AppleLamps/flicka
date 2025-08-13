@@ -9,8 +9,10 @@ import {
   Volume2, 
   VolumeX,
   CheckCircle,
-  AlertCircle 
+  AlertCircle,
+  Captions
 } from "lucide-react";
+import { PostFlowModal } from "./PostFlowModal";
 
 interface CaptureScreenProps {
   onClose: () => void;
@@ -33,7 +35,9 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
   const [speed, setSpeed] = useState(1);
   const [hasAlignment, setHasAlignment] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [hasAutoCaptions, setHasAutoCaptions] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [showPostFlow, setShowPostFlow] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -177,11 +181,15 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
     }
   };
 
-  const handlePost = () => {
+  const handleShowPostFlow = () => {
     if (totalDuration > 0) {
-      onPost?.(clips);
-      onClose();
+      setShowPostFlow(true);
     }
+  };
+
+  const handlePost = (postData: any) => {
+    onPost?.({ clips, ...postData });
+    onClose();
   };
 
   const canRecord = totalDuration < MAX_DURATION;
@@ -267,6 +275,13 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               >
                 {isMuted ? <VolumeX size={20} className="text-white" /> : <Volume2 size={20} className="text-white" />}
               </button>
+
+              <button
+                onClick={() => setHasAutoCaptions(!hasAutoCaptions)}
+                className={`icon-button ${hasAutoCaptions ? 'bg-primary' : ''}`}
+              >
+                <Captions size={20} className="text-white" />
+              </button>
             </div>
           </div>
         </div>
@@ -342,7 +357,7 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
 
             {/* Post Button */}
             <button
-              onClick={handlePost}
+              onClick={handleShowPostFlow}
               disabled={totalDuration === 0}
               className="btn-primary disabled:opacity-50"
             >
@@ -351,7 +366,7 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
               ) : totalDuration > 0 ? (
                 <AlertCircle size={20} className="mr-2" />
               ) : null}
-              Post
+              Next
             </button>
           </div>
 
@@ -368,6 +383,14 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
           </div>
         </div>
       </div>
+
+      {/* Post Flow Modal */}
+      <PostFlowModal
+        isOpen={showPostFlow}
+        onClose={() => setShowPostFlow(false)}
+        onPost={handlePost}
+        videoDuration={totalDuration}
+      />
     </div>
   );
 };
