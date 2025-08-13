@@ -62,7 +62,9 @@ const Index = () => {
     preloadVideo,
     isBuffering,
     networkType,
-    currentVideoIndex
+    currentVideoIndex,
+    toggleMute,
+    isMuted
   } = useVideoManager({
     preloadDistance: 2,
     maxActiveVideos: 5,
@@ -299,6 +301,8 @@ const Index = () => {
                 }}
                 autoPlay={index === currentVideoIndex}
                 isBuffering={isBuffering[video.id] || false}
+                isMuted={isMuted}
+                onToggleMute={toggleMute}
                 onComment={() => handleVideoComment(video.id)}
                 onUserClick={() => handleUserClick(video.user_id)}
                 onLike={() => toggleLike(video.id)}

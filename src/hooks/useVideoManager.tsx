@@ -22,8 +22,19 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isBuffering, setIsBuffering] = useState<Record<string, boolean>>({});
   const [networkType, setNetworkType] = useState<'slow' | 'fast'>('fast');
+  const [isMuted, setIsMuted] = useState<boolean>(true);
   
   const videoElements = useRef<Map<string, VideoElement>>(new Map());
+  type ListenerSet = {
+    waiting: () => void;
+    seeking: () => void;
+    stalled: () => void;
+    playing: () => void;
+    canplay: () => void;
+    canplaythrough: () => void;
+    error: () => void;
+  };
+  const videoListeners = useRef<WeakMap<HTMLVideoElement, ListenerSet>>(new WeakMap());
   const observer = useRef<IntersectionObserver | null>(null);
   const memoryCleanupTimer = useRef<NodeJS.Timeout>();
 
@@ -43,6 +54,20 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
   }, [options.networkAware]);
 
   // Memory cleanup
+  const detachElementListeners = (element: HTMLVideoElement) => {
+    const ls = videoListeners.current.get(element);
+    if (ls) {
+      element.removeEventListener('waiting', ls.waiting);
+      element.removeEventListener('seeking', ls.seeking);
+      element.removeEventListener('stalled', ls.stalled);
+      element.removeEventListener('playing', ls.playing);
+      element.removeEventListener('canplay', ls.canplay);
+      element.removeEventListener('canplaythrough', ls.canplaythrough);
+      element.removeEventListener('error', ls.error);
+      videoListeners.current.delete(element);
+    }
+  };
+
   const cleanupMemory = useCallback(() => {
     const elements = Array.from(videoElements.current.values());
     const activeElements = elements
@@ -52,6 +77,7 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
     // Remove elements that are too far away
     elements.forEach(el => {
       if (!activeElements.includes(el)) {
+        detachElementListeners(el.element);
         el.element.src = '';
         el.element.load();
         videoElements.current.delete(el.id);
@@ -73,7 +99,7 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
 
     video.preload = priority === 'high' ? 'auto' : 'metadata';
     video.src = src;
-    video.muted = true;
+    video.muted = isMuted;
     video.playsInline = true;
 
     const handleLoadStart = () => setIsBuffering(prev => ({ ...prev, [videoId]: true }));
@@ -96,12 +122,34 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
       isPreloaded: false,
       loadPriority: priority
     });
-  }, [networkType, options.networkAware]);
+  }, [networkType, options.networkAware, isMuted]);
 
   // Register video element
   const registerVideo = useCallback((videoId: string, element: HTMLVideoElement | null) => {
     if (element) {
       const existing = videoElements.current.get(videoId);
+
+      // Ensure no duplicate listeners
+      detachElementListeners(element);
+
+      // Attach buffering/playing/error listeners to the actual element
+      const waiting = () => setIsBuffering(prev => ({ ...prev, [videoId]: true }));
+      const seeking = () => setIsBuffering(prev => ({ ...prev, [videoId]: true }));
+      const stalled = () => setIsBuffering(prev => ({ ...prev, [videoId]: true }));
+      const playing = () => setIsBuffering(prev => ({ ...prev, [videoId]: false }));
+      const canplay = () => setIsBuffering(prev => ({ ...prev, [videoId]: false }));
+      const canplaythrough = () => setIsBuffering(prev => ({ ...prev, [videoId]: false }));
+      const error = () => setIsBuffering(prev => ({ ...prev, [videoId]: false }));
+
+      element.addEventListener('waiting', waiting);
+      element.addEventListener('seeking', seeking);
+      element.addEventListener('stalled', stalled);
+      element.addEventListener('playing', playing);
+      element.addEventListener('canplay', canplay);
+      element.addEventListener('canplaythrough', canplaythrough);
+      element.addEventListener('error', error);
+      videoListeners.current.set(element, { waiting, seeking, stalled, playing, canplay, canplaythrough, error });
+
       videoElements.current.set(videoId, {
         element,
         id: videoId,
@@ -109,10 +157,15 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
         isPreloaded: existing?.isPreloaded || false,
         loadPriority: 'high'
       });
+      element.muted = isMuted;
     } else {
+      const existing = videoElements.current.get(videoId);
+      if (existing?.element) {
+        detachElementListeners(existing.element);
+      }
       videoElements.current.delete(videoId);
     }
-  }, []);
+  }, [isMuted]);
 
   // Update video visibility
   const updateVideoVisibility = useCallback((videoId: string, isVisible: boolean, index: number) => {
@@ -139,6 +192,7 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
           }
         });
 
+        element.element.muted = isMuted;
         await element.element.play();
         return true;
       } catch (error) {
@@ -147,7 +201,7 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
       }
     }
     return false;
-  }, []);
+  }, [isMuted]);
 
   const pauseVideo = useCallback((videoId: string) => {
     const element = videoElements.current.get(videoId);
@@ -164,6 +218,33 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
     });
   }, []);
 
+  const retryVideo = useCallback((videoId: string) => {
+    const el = videoElements.current.get(videoId)?.element;
+    if (!el) return;
+    setIsBuffering(prev => ({ ...prev, [videoId]: true }));
+    const curr = el.currentSrc || el.src;
+    if (curr) el.src = curr;
+    el.load();
+    el.play().catch(() => {});
+  }, []);
+
+  const setMuted = useCallback((muted: boolean) => {
+    setIsMuted(muted);
+    videoElements.current.forEach(({ element }) => {
+      element.muted = muted;
+    });
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const next = !prev;
+      videoElements.current.forEach(({ element }) => {
+        element.muted = next;
+      });
+      return next;
+    });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -171,6 +252,8 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
         clearTimeout(memoryCleanupTimer.current);
       }
       observer.current?.disconnect();
+      // detach listeners on unmount
+      videoElements.current.forEach(({ element }) => detachElementListeners(element));
       pauseAllVideos();
     };
   }, [pauseAllVideos]);
@@ -192,8 +275,12 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
     pauseVideo,
     pauseAllVideos,
     preloadVideo,
+    retryVideo,
+    setMuted,
+    toggleMute,
     isBuffering,
     networkType,
-    currentVideoIndex
+    currentVideoIndex,
+    isMuted
   };
 };

@@ -42,21 +42,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    let initialFetched = false;
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Defer profile fetching to avoid auth deadlock
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-          }, 0);
-        } else {
+
+        if (!session?.user) {
           setProfile(null);
+        } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+          // On significant auth changes, refresh profile
+          setTimeout(() => fetchProfile(session.user!.id), 0);
         }
-        
+
         setLoading(false);
       }
     );
@@ -66,10 +66,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (session?.user) {
-        setTimeout(() => {
-          fetchProfile(session.user.id);
-        }, 0);
+      if (session?.user && !initialFetched) {
+        initialFetched = true;
+        setTimeout(() => fetchProfile(session.user!.id), 0);
       }
       
       setLoading(false);

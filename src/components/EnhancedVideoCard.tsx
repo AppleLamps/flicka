@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Heart, MessageCircle, Share, Plus, Play, Repeat2, Bookmark, MoreHorizontal, Loader2 } from "lucide-react";
+import { Heart, MessageCircle, Share, Plus, Play, Repeat2, Bookmark, MoreHorizontal, Loader2, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFollowState } from "@/hooks/useFollowState";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,8 @@ interface VideoCardProps {
   autoPlay?: boolean;
   isBuffering?: boolean;
   onVisibilityChange?: (isVisible: boolean) => void;
+  isMuted?: boolean;
+  onToggleMute?: () => void;
 }
 
 export const EnhancedVideoCard = ({
@@ -58,7 +60,9 @@ export const EnhancedVideoCard = ({
   triggerHaptic,
   autoPlay = true,
   isBuffering = false,
-  onVisibilityChange
+  onVisibilityChange,
+  isMuted = true,
+  onToggleMute
 }: VideoCardProps) => {
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [progress, setProgress] = useState(0);
@@ -68,6 +72,8 @@ export const EnhancedVideoCard = ({
   const [likeCount, setLikeCount] = useState(stats.likes);
   const [revineCount, setRevineCount] = useState(stats.revines || 0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [isBufferingLocal, setIsBufferingLocal] = useState(false);
+  const [hasError, setHasError] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const intersectionRef = useRef<HTMLDivElement>(null);
@@ -125,19 +131,45 @@ export const EnhancedVideoCard = ({
       video.play();
     };
 
-    const handlePlay = () => setIsPlaying(true);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      setIsBufferingLocal(false);
+      setHasError(false);
+    };
     const handlePause = () => setIsPlaying(false);
+    const handleWaiting = () => setIsBufferingLocal(true);
+    const handleStalled = () => setIsBufferingLocal(true);
+    const handleSeeking = () => setIsBufferingLocal(true);
+    const handleCanPlay = () => setIsBufferingLocal(false);
+    const handleCanPlayThrough = () => setIsBufferingLocal(false);
+    const handleError = () => {
+      setIsBufferingLocal(false);
+      setHasError(true);
+      setIsPlaying(false);
+    };
 
     video.addEventListener('timeupdate', updateProgress);
     video.addEventListener('ended', handleEnded);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('stalled', handleStalled);
+    video.addEventListener('seeking', handleSeeking);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('canplaythrough', handleCanPlayThrough);
+    video.addEventListener('error', handleError);
 
     return () => {
       video.removeEventListener('timeupdate', updateProgress);
       video.removeEventListener('ended', handleEnded);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
+      video.removeEventListener('waiting', handleWaiting);
+      video.removeEventListener('stalled', handleStalled);
+      video.removeEventListener('seeking', handleSeeking);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('canplaythrough', handleCanPlayThrough);
+      video.removeEventListener('error', handleError);
       onVideoRef?.(null);
     };
   }, [onVideoRef]);
@@ -154,12 +186,16 @@ export const EnhancedVideoCard = ({
       setTimeout(() => {
         if (Date.now() - lastTap.current >= 300) {
           handleVideoClick();
+          // explicit user gesture -> allow audio by unmuting
+          if (isMuted) {
+            onToggleMute?.();
+          }
         }
       }, 300);
     }
     
     lastTap.current = now;
-  }, []);
+  }, [isMuted, onToggleMute]);
 
   const handleLongPress = useCallback(() => {
     longPressTimeout.current = setTimeout(() => {
@@ -211,6 +247,17 @@ export const EnhancedVideoCard = ({
     return count.toString();
   };
 
+  const handleRetry = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    setHasError(false);
+    setIsBufferingLocal(true);
+    const src = v.currentSrc || v.src;
+    if (src) v.src = src;
+    v.load();
+    v.play().catch(() => {});
+  };
+
   return (
     <div ref={intersectionRef} className="relative w-full h-screen bg-black overflow-hidden">
       {/* Progressive Image Loading */}
@@ -218,7 +265,7 @@ export const EnhancedVideoCard = ({
         <div className="absolute inset-0 bg-gradient-to-br from-muted/50 to-muted animate-pulse" />
       )}
       
-      {/* Video with buffering indicator */}
+      {/* Video with buffering/error indicators */}
       <div className="relative w-full h-full">
         <video
           ref={videoRef}
@@ -232,13 +279,14 @@ export const EnhancedVideoCard = ({
           onMouseUp={handleTouchEnd}
           onLoadedData={() => setImageLoaded(true)}
           loop
-          muted
+          muted={isMuted}
           autoPlay={autoPlay}
           playsInline
+          preload="metadata"
         />
         
         {/* Buffering Indicator */}
-        {isBuffering && (
+        {(isBuffering || isBufferingLocal) && !hasError && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/20">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="w-8 h-8 text-white animate-spin" />
@@ -246,13 +294,27 @@ export const EnhancedVideoCard = ({
             </div>
           </div>
         )}
+
+        {/* Error Overlay with Retry */}
+        {hasError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <div className="flex flex-col items-center gap-3">
+              <span className="text-white text-sm">Couldn’t load the video</span>
+              <Button size="sm" variant="secondary" onClick={handleRetry}>
+                Retry
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Play Overlay */}
-      {!isPlaying && !isBuffering && (
+      {!isPlaying && !(isBuffering || isBufferingLocal) && !hasError && (
         <div className="absolute inset-0 flex items-center justify-center">
           <button
             onClick={handleVideoClick}
+            aria-label="Play video"
+            title="Play video"
             className="w-16 h-16 rounded-full glass-surface flex items-center justify-center hover:scale-110 transition-transform"
           >
             <Play size={24} className="text-white ml-1" />
@@ -282,6 +344,21 @@ export const EnhancedVideoCard = ({
             className="progress-ring transition-all duration-100"
           />
         </svg>
+      </div>
+
+      {/* Mute/Unmute control */}
+      <div className="absolute top-4 left-4">
+        <button
+          aria-label={isMuted ? 'Unmute' : 'Mute'}
+          onClick={onToggleMute}
+          className="w-10 h-10 rounded-full glass-surface flex items-center justify-center hover:scale-105 transition-transform"
+        >
+          {isMuted ? (
+            <VolumeX size={18} className="text-white" />
+          ) : (
+            <Volume2 size={18} className="text-white" />
+          )}
+        </button>
       </div>
 
       {/* Quick Actions Modal */}

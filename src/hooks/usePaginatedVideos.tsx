@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -33,6 +33,7 @@ export const usePaginatedVideos = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [lastVideoDate, setLastVideoDate] = useState<string | null>(null);
+  const lastVideoDateRef = useRef<string | null>(null);
   const { user } = useAuth();
 
   const fetchVideos = useCallback(async (loadMore = false) => {
@@ -43,6 +44,7 @@ export const usePaginatedVideos = () => {
         setLoading(true);
         setVideos([]);
         setLastVideoDate(null);
+        lastVideoDateRef.current = null;
         setHasMore(true);
       }
       setError(null);
@@ -61,8 +63,8 @@ export const usePaginatedVideos = () => {
         .limit(VIDEOS_PER_PAGE);
 
       // Add cursor-based pagination
-      if (loadMore && lastVideoDate) {
-        query = query.lt('created_at', lastVideoDate);
+      if (loadMore && lastVideoDateRef.current) {
+        query = query.lt('created_at', lastVideoDateRef.current);
       }
 
       const { data, error: fetchError } = await query;
@@ -81,7 +83,9 @@ export const usePaginatedVideos = () => {
 
       // Update pagination state
       if (newVideos.length > 0) {
-        setLastVideoDate(newVideos[newVideos.length - 1].created_at);
+        const cursor = newVideos[newVideos.length - 1].created_at;
+        setLastVideoDate(cursor);
+        lastVideoDateRef.current = cursor;
       }
       
       setHasMore(newVideos.length === VIDEOS_PER_PAGE);
@@ -92,7 +96,7 @@ export const usePaginatedVideos = () => {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [lastVideoDate]);
+  }, []);
 
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
@@ -101,6 +105,8 @@ export const usePaginatedVideos = () => {
   }, [fetchVideos, loadingMore, hasMore]);
 
   const refreshVideos = useCallback(() => {
+    lastVideoDateRef.current = null;
+    setLastVideoDate(null);
     fetchVideos(false);
   }, [fetchVideos]);
 
@@ -117,8 +123,7 @@ export const usePaginatedVideos = () => {
           schema: 'public',
           table: 'videos'
         },
-        (payload) => {
-          console.log('New video added:', payload);
+        () => {
           refreshVideos();
         }
       )
@@ -127,7 +132,7 @@ export const usePaginatedVideos = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [refreshVideos]);
+  }, [fetchVideos, refreshVideos]);
 
   return {
     videos,
