@@ -397,11 +397,11 @@ const EnhancedVideoCardBase = ({
       )}
 
       {/* Top Overlay - Enhanced User Info */}
-      <div className="absolute top-0 left-0 right-0 p-4 video-overlay-top">
+      <div className="absolute top-0 left-0 right-0 p-4 video-overlay-top pointer-events-none">
         <div className="flex items-center justify-between">
           <button
             onClick={onUserClick}
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity pointer-events-auto"
           >
             <div className="w-10 h-10 rounded-full bg-muted overflow-hidden border-2 border-white/20">
               {user.avatarUrl ? (
@@ -435,7 +435,7 @@ const EnhancedVideoCardBase = ({
             variant={getFollowButtonVariant(user.id)}
             size="sm"
             disabled={followState.isLoading}
-            className="min-w-[80px] transition-all duration-200"
+            className="min-w-[80px] transition-all duration-200 pointer-events-auto"
           >
             {followState.isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -447,7 +447,7 @@ const EnhancedVideoCardBase = ({
       </div>
 
       {/* Bottom Overlay - Caption & Enhanced Actions */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-[var(--overlay-bottom-padding)] md:pb-6 video-overlay-bottom">
+      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-[var(--overlay-bottom-padding)] md:pb-6 video-overlay-bottom pointer-events-none">
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1 text-white">
             <p className="text-base mb-2 leading-relaxed">{caption}</p>
@@ -477,7 +477,7 @@ const EnhancedVideoCardBase = ({
             {/* Like with enhanced animation */}
             <button
               onClick={handleLike}
-              className="flex flex-col items-center gap-1 group"
+              className="flex flex-col items-center gap-1 group pointer-events-auto"
               aria-label={liked ? 'Unlike' : 'Like'}
             >
               <div className={cn(
@@ -500,7 +500,7 @@ const EnhancedVideoCardBase = ({
             {/* Comment */}
             <button
               onClick={onComment}
-              className="flex flex-col items-center gap-1 group"
+              className="flex flex-col items-center gap-1 group pointer-events-auto"
               aria-label="Open comments"
             >
               <div className="icon-button active:scale-95 hover:scale-105 min-h-[48px] min-w-[48px] transition-transform">
@@ -512,7 +512,7 @@ const EnhancedVideoCardBase = ({
             {/* Revine with enhanced animation */}
             <button
               onClick={handleRevine}
-              className="flex flex-col items-center gap-1 group"
+              className="flex flex-col items-center gap-1 group pointer-events-auto"
               aria-label={isRevined ? 'Undo repost' : 'Repost'}
             >
               <div className={cn(
@@ -535,7 +535,7 @@ const EnhancedVideoCardBase = ({
             {/* Share */}
             <button
               onClick={onShare}
-              className="flex flex-col items-center gap-1 group"
+              className="flex flex-col items-center gap-1 group pointer-events-auto"
               aria-label="Share video"
             >
               <div className="icon-button active:scale-95 hover:scale-105 min-h-[48px] min-w-[48px] transition-transform">
