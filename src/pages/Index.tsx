@@ -4,6 +4,10 @@ import { VideoCard } from "@/components/VideoCard";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CaptureScreen } from "@/components/CaptureScreen";
 import { VideoDetailSheet } from "@/components/VideoDetailSheet";
+import { FeedSkeleton } from "@/components/SkeletonLoader";
+import { HomeFeedEmpty, ExploreEmpty, NotificationsEmpty, NetworkError } from "@/components/EmptyStates";
+import { useErrorBoundary, useNetworkStatus } from "@/hooks/useErrorBoundary";
+import { useReducedMotion } from "@/hooks/useAccessibility";
 
 // Mock data
 const mockVideos = [
@@ -117,16 +121,43 @@ const Index = () => {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [scrollY, setScrollY] = useState(0);
   const [playingVideo, setPlayingVideo] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement }>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Accessibility and error handling hooks
+  const { error, handleNetworkError, clearError, retry } = useErrorBoundary();
+  const isOnline = useNetworkStatus();
+  const prefersReducedMotion = useReducedMotion();
 
-  // Haptic feedback helper
+  // Haptic feedback helper with reduced motion support
   const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
-    if ('vibrate' in navigator) {
+    if ('vibrate' in navigator && !prefersReducedMotion) {
       const patterns = { light: 10, medium: 50, heavy: 100 };
       navigator.vibrate(patterns[type]);
     }
+  }, [prefersReducedMotion]);
+
+  // Simulate loading state for demo
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
+
+  // Network error handling
+  useEffect(() => {
+    if (!isOnline) {
+      handleNetworkError(new Error('No internet connection'), () => {
+        window.location.reload();
+      });
+    } else {
+      clearError();
+    }
+  }, [isOnline, handleNetworkError, clearError]);
 
   // Auto-play video management with IntersectionObserver
   useEffect(() => {
@@ -184,6 +215,21 @@ const Index = () => {
     }
   };
 
+  const handleRefresh = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
+  };
+
+  const handleExplore = () => {
+    setActiveTab("explore");
+  };
+
+  const handleCreateLoop = () => {
+    setShowCapture(true);
+  };
+
   const handleCaptureClose = () => {
     setShowCapture(false);
     setActiveTab('home');
@@ -219,8 +265,80 @@ const Index = () => {
     return <CaptureScreen onClose={handleCaptureClose} />;
   }
 
+  // Content rendering logic
+  const renderContent = () => {
+    if (error) {
+      return <NetworkError onRetry={retry} />;
+    }
+
+    if (isLoading) {
+      return <FeedSkeleton count={3} />;
+    }
+
+    // Empty states for different tabs
+    if (activeTab === "home" && mockVideos.length === 0) {
+      return <HomeFeedEmpty onExplore={handleExplore} onCapture={handleCreateLoop} />;
+    }
+
+    if (activeTab === "explore" && mockVideos.length === 0) {
+      return <ExploreEmpty onRefresh={handleRefresh} />;
+    }
+
+    if (activeTab === "notifications") {
+      return <NotificationsEmpty />;
+    }
+
+    // Regular content for each tab
+    if (activeTab === 'home') {
+      return (
+        <div className="w-full">
+          {mockVideos.map((video, index) => (
+            <div 
+              key={video.id}
+              data-video-id={video.id}
+              className="w-full h-screen snap-start"
+            >
+              <VideoCard
+                {...video}
+                autoPlay={index === currentVideoIndex}
+                onComment={() => handleVideoComment(video.id)}
+                onUserClick={() => console.log('User clicked:', video.user.username)}
+                onLike={() => console.log('Like video:', video.id)}
+                onShare={() => console.log('Share video:', video.id)}
+                onRevine={() => console.log('Revine video:', video.id)}
+                onFollow={() => console.log('Follow user:', video.user.id)}
+                onVideoRef={(element) => handleVideoRef(video.id, element)}
+                triggerHaptic={triggerHaptic}
+              />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (activeTab === 'explore') {
+      return (
+        <div className="p-4 text-center">
+          <h2 className="text-2xl font-bold mb-4">Explore</h2>
+          <p className="text-muted-foreground">Discover trending loops and creators</p>
+        </div>
+      );
+    }
+
+    if (activeTab === 'profile') {
+      return (
+        <div className="p-4 text-center">
+          <h2 className="text-2xl font-bold mb-4">Profile</h2>
+          <p className="text-muted-foreground">Your loops and profile settings</p>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background safe-area-inset">
       {/* Top App Bar */}
       <TopAppBar 
         hasNotifications={true}
@@ -229,52 +347,8 @@ const Index = () => {
       />
 
       {/* Main Content */}
-      <main className="pt-16 pb-20" ref={containerRef}>
-        {activeTab === 'home' && (
-          <div className="w-full">
-            {mockVideos.map((video, index) => (
-              <div 
-                key={video.id}
-                data-video-id={video.id}
-                className="w-full h-screen snap-start"
-              >
-                <VideoCard
-                  {...video}
-                  autoPlay={index === currentVideoIndex}
-                  onComment={() => handleVideoComment(video.id)}
-                  onUserClick={() => console.log('User clicked:', video.user.username)}
-                  onLike={() => console.log('Like video:', video.id)}
-                  onShare={() => console.log('Share video:', video.id)}
-                  onRevine={() => console.log('Revine video:', video.id)}
-                  onFollow={() => console.log('Follow user:', video.user.id)}
-                  onVideoRef={(element) => handleVideoRef(video.id, element)}
-                  triggerHaptic={triggerHaptic}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'explore' && (
-          <div className="p-4 text-center">
-            <h2 className="text-2xl font-bold mb-4">Explore</h2>
-            <p className="text-muted-foreground">Discover trending loops and creators</p>
-          </div>
-        )}
-
-        {activeTab === 'notifications' && (
-          <div className="p-4 text-center">
-            <h2 className="text-2xl font-bold mb-4">Notifications</h2>
-            <p className="text-muted-foreground">Stay updated with your loops</p>
-          </div>
-        )}
-
-        {activeTab === 'profile' && (
-          <div className="p-4 text-center">
-            <h2 className="text-2xl font-bold mb-4">Profile</h2>
-            <p className="text-muted-foreground">Your loops and profile settings</p>
-          </div>
-        )}
+      <main className="pt-16 pb-20" ref={containerRef} role="main" aria-label={`${activeTab} feed`}>
+        {renderContent()}
       </main>
 
       {/* Bottom Navigation */}
