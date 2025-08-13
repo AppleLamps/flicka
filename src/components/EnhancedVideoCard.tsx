@@ -447,7 +447,7 @@ export const EnhancedVideoCard = ({
       </div>
 
       {/* Bottom Overlay - Caption & Enhanced Actions */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 video-overlay-bottom">
+      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-[var(--overlay-bottom-padding)] md:pb-6 video-overlay-bottom">
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1 text-white">
             <p className="text-base mb-2 leading-relaxed">{caption}</p>
@@ -478,6 +478,7 @@ export const EnhancedVideoCard = ({
             <button
               onClick={handleLike}
               className="flex flex-col items-center gap-1 group"
+              aria-label={liked ? 'Unlike' : 'Like'}
             >
               <div className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 min-h-[48px] min-w-[48px]",
@@ -489,7 +490,7 @@ export const EnhancedVideoCard = ({
                   size={24} 
                   className={cn(
                     "transition-all duration-300",
-                    liked && "fill-current animate-bounce"
+                    liked && "fill-current animate-like"
                   )}
                 />
               </div>
@@ -500,6 +501,7 @@ export const EnhancedVideoCard = ({
             <button
               onClick={onComment}
               className="flex flex-col items-center gap-1 group"
+              aria-label="Open comments"
             >
               <div className="icon-button active:scale-95 hover:scale-105 min-h-[48px] min-w-[48px] transition-transform">
                 <MessageCircle size={24} className="text-white" />
@@ -511,6 +513,7 @@ export const EnhancedVideoCard = ({
             <button
               onClick={handleRevine}
               className="flex flex-col items-center gap-1 group"
+              aria-label={isRevined ? 'Undo repost' : 'Repost'}
             >
               <div className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 min-h-[48px] min-w-[48px]",
@@ -533,6 +536,7 @@ export const EnhancedVideoCard = ({
             <button
               onClick={onShare}
               className="flex flex-col items-center gap-1 group"
+              aria-label="Share video"
             >
               <div className="icon-button active:scale-95 hover:scale-105 min-h-[48px] min-w-[48px] transition-transform">
                 <Share size={24} className="text-white" />

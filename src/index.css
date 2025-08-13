@@ -96,6 +96,11 @@
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Navigation/overlay sizing for mobile optimization */
+    --bottom-nav-height: 72px; /* keep in sync with BottomNavigation visual height */
+    --overlay-bottom-gap: 20px; /* extra breathing room above nav */
+    --overlay-bottom-padding: calc(var(--bottom-nav-height) + var(--overlay-bottom-gap));
   }
 }
 
@@ -115,8 +120,8 @@
   .glass-surface {
     background: hsl(var(--glass-bg));
     border: 1px solid hsl(var(--glass-border));
-    backdrop-filter: var(--backdrop-blur);
     -webkit-backdrop-filter: var(--backdrop-blur);
+    backdrop-filter: var(--backdrop-blur);
   }
   
   .glass-card {
@@ -195,8 +200,8 @@
   
   /* Blur Effects */
   .backdrop-blur-header {
-    backdrop-filter: blur(12px) saturate(180%);
     -webkit-backdrop-filter: blur(12px) saturate(180%);
+    backdrop-filter: blur(12px) saturate(180%);
   }
 
   /* Mobile optimizations */
@@ -205,6 +210,7 @@
     scroll-snap-type: y mandatory;
     overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   body {
@@ -229,6 +235,11 @@
 
   /* iOS safe area handling */
   @supports (padding: max(0px)) {
+    /* Use safe-area inset in overlay padding when available */
+    :root {
+      --overlay-bottom-padding: calc(env(safe-area-inset-bottom) + var(--bottom-nav-height) + var(--overlay-bottom-gap));
+    }
+
     .safe-area-top {
       padding-top: max(1rem, env(safe-area-inset-top));
     }

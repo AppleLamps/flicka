@@ -116,6 +116,51 @@ export const useSocialFeatures = () => {
     }
   };
 
+  const toggleRevine = async (videoId: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to repost",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Check if already revined
+      const { data: existing } = await supabase
+        .from('revines')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('video_id', videoId)
+        .single();
+
+      if (existing) {
+        // Undo revine
+        const { error } = await supabase
+          .from('revines')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', videoId);
+        if (error) throw error;
+        toast({ title: 'Repost removed' });
+      } else {
+        // Create revine record
+        const { error } = await supabase
+          .from('revines')
+          .insert({ user_id: user.id, video_id: videoId });
+        if (error) throw error;
+        toast({ title: 'Reposted', description: 'Shared to your profile' });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to repost',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const postVideo = async (videoData: {
     title?: string;
     description?: string;
@@ -233,6 +278,7 @@ export const useSocialFeatures = () => {
   return {
     toggleLike,
     toggleFollow,
+    toggleRevine,
     postVideo,
     uploadVideo,
     addComment,

@@ -16,6 +16,7 @@ import { useVideoManager } from "@/hooks/useVideoManager";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocialFeatures } from "@/hooks/useSocialFeatures";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchModal } from "@/components/SearchModal";
 import { UserProfile } from "@/components/UserProfile";
@@ -25,9 +26,10 @@ import { SampleDataButton } from "@/components/SampleDataButton";
 
 const Index = () => {
   const { user, loading: authLoading, profile, signOut } = useAuth();
-  const { toggleLike, toggleFollow, addComment } = useSocialFeatures();
+  const { toggleLike, toggleFollow, toggleRevine, addComment } = useSocialFeatures();
   
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   const [activeTab, setActiveTab] = useState<'home' | 'explore' | 'capture' | 'notifications' | 'profile'>('home');
   const [showCapture, setShowCapture] = useState(false);
@@ -186,6 +188,43 @@ const Index = () => {
     setSelectedVideo(video);
   };
 
+  const handleShare = async (video: any) => {
+    try {
+      const shareData = {
+        title: 'Loop',
+        text: video.description || 'Check out this loop',
+        url: window.location.origin + '/?v=' + video.id,
+      };
+      if (navigator.share && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        toast({ title: 'Link copied', description: 'Share URL copied to clipboard' });
+      }
+    } catch (err) {
+      console.error('Share failed', err);
+    }
+  };
+
+  const toDetailVideo = (video: any) => ({
+    id: video.id,
+    videoUrl: video.video_url,
+    user: {
+      id: video.user_id,
+      username: video.profiles?.username || 'user',
+      displayName: video.profiles?.display_name || 'User',
+      avatarUrl: video.profiles?.avatar_url || '',
+    },
+    caption: video.description || '',
+    hashtags: video.hashtags || [],
+    audioTitle: video.audio_title,
+    stats: {
+      likes: video.likes_count || 0,
+      comments: video.comments_count || 0,
+      shares: 0,
+    },
+  });
+
   const handleCommentSubmit = async (text: string) => {
     if (!selectedVideo?.id || !text.trim()) return;
     
@@ -297,7 +336,7 @@ const Index = () => {
                   comments: video.comments_count,
                   shares: 0,
                   saves: 0,
-                  revines: 0
+                  revines: (video as any).revines_count || 0
                 }}
                 autoPlay={index === currentVideoIndex}
                 isBuffering={isBuffering[video.id] || false}
@@ -306,8 +345,8 @@ const Index = () => {
                 onComment={() => handleVideoComment(video.id)}
                 onUserClick={() => handleUserClick(video.user_id)}
                 onLike={() => toggleLike(video.id)}
-                onShare={() => console.log('Share video:', video.id)}
-                onRevine={() => console.log('Revine video:', video.id)}
+                onShare={() => handleShare(video)}
+                onRevine={() => toggleRevine(video.id)}
                 onVideoRef={(element) => handleVideoRef(video.id, element)}
                 onVisibilityChange={(isVisible) => handleVideoVisibilityChange(video.id, index, isVisible)}
                 triggerHaptic={triggerHaptic}
@@ -421,7 +460,7 @@ const Index = () => {
         <VideoDetailSheet
           isOpen={!!selectedVideo}
           onClose={() => setSelectedVideo(null)}
-          video={selectedVideo}
+          video={toDetailVideo(selectedVideo)}
           comments={comments.map(comment => ({
             id: comment.id,
             user: {
@@ -437,7 +476,7 @@ const Index = () => {
             replies: []
           }))}
           isLoadingComments={commentsLoading}
-          onShare={() => console.log('Share video')}
+          onShare={() => selectedVideo && handleShare(selectedVideo)}
           onCommentSubmit={handleCommentSubmit}
           onCommentLike={handleCommentLike}
         />

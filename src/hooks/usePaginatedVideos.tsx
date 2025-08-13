@@ -14,6 +14,7 @@ export interface Video {
   audio_title?: string;
   likes_count: number;
   comments_count: number;
+  revines_count?: number;
   views_count: number;
   created_at: string;
   updated_at: string;
