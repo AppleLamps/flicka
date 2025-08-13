@@ -52,21 +52,53 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
+				// Premium Glass Effect
+				glass: {
+					bg: 'hsl(var(--glass-bg))',
+					border: 'hsl(var(--glass-border))'
 				}
 			},
 			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				lg: 'var(--radius-lg)',
+				md: 'var(--radius)',
+				sm: 'calc(var(--radius) - 4px)',
+				xl: 'var(--radius-xl)'
+			},
+			fontFamily: {
+				sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Inter', 'SF Pro Display', 'sans-serif']
+			},
+			fontSize: {
+				xs: 'var(--font-size-xs)',
+				sm: 'var(--font-size-sm)',
+				base: 'var(--font-size-base)',
+				lg: 'var(--font-size-lg)',
+				xl: 'var(--font-size-xl)',
+				'2xl': 'var(--font-size-2xl)',
+				'3xl': 'var(--font-size-3xl)',
+				'4xl': 'var(--font-size-4xl)'
+			},
+			spacing: {
+				xs: 'var(--space-xs)',
+				sm: 'var(--space-sm)',
+				md: 'var(--space-md)',
+				lg: 'var(--space-lg)',
+				xl: 'var(--space-xl)',
+				'2xl': 'var(--space-2xl)',
+				'3xl': 'var(--space-3xl)'
+			},
+			transitionDuration: {
+				fast: 'var(--transition-fast)',
+				base: 'var(--transition-base)',
+				slow: 'var(--transition-slow)'
+			},
+			boxShadow: {
+				soft: 'var(--shadow-soft)',
+				medium: 'var(--shadow-medium)',
+				large: 'var(--shadow-large)',
+				glow: 'var(--shadow-glow)'
+			},
+			backdropBlur: {
+				header: 'var(--backdrop-blur)'
 			},
 			keyframes: {
 				'accordion-down': {

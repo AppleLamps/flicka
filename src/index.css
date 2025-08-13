@@ -2,41 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Loop - Premium Video App Design System */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
+    /* Core Brand Colors - Dark Mode First */
+    --background: 210 9% 4%; /* Deep charcoal #0B0D0F */
+    --foreground: 210 15% 98%; /* Off-white #F5F7FA */
+    
+    --card: 210 9% 6%;
+    --card-foreground: 210 15% 98%;
+    
+    --popover: 210 9% 8%;
+    --popover-foreground: 210 15% 98%;
+    
+    /* Electric Mint Accent - Use Sparingly */
+    --primary: 168 76% 58%; /* Electric mint #3AF2C8 */
+    --primary-foreground: 210 9% 4%;
+    
+    --secondary: 210 9% 12%;
+    --secondary-foreground: 210 15% 90%;
+    
+    --muted: 210 9% 10%;
+    --muted-foreground: 210 8% 65%;
+    
+    --accent: 168 76% 58%; /* Electric mint accent */
+    --accent-foreground: 210 9% 4%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 15% 98%;
+    
+    --border: 210 9% 15%;
+    --input: 210 9% 12%;
+    --ring: 168 76% 58%;
+    
+    /* Premium Design Tokens */
+    --radius: 1rem; /* 16px for premium feel */
+    --radius-lg: 1.25rem; /* 20px for cards */
+    --radius-xl: 1.5rem; /* 24px for major surfaces */
+    
+    /* Glassmorphism & Depth */
+    --glass-bg: 210 9% 8% / 0.8;
+    --glass-border: 210 15% 25% / 0.2;
+    --backdrop-blur: blur(12px);
+    
+    /* Shadows & Elevation */
+    --shadow-soft: 0 4px 24px -4px hsl(210 9% 0% / 0.4);
+    --shadow-medium: 0 8px 40px -8px hsl(210 9% 0% / 0.5);
+    --shadow-large: 0 16px 64px -16px hsl(210 9% 0% / 0.6);
+    --shadow-glow: 0 0 32px hsl(var(--accent) / 0.3);
+    
+    /* Gradients */
+    --gradient-overlay: linear-gradient(180deg, transparent 0%, hsl(210 9% 4% / 0.8) 100%);
+    --gradient-glass: linear-gradient(135deg, hsl(210 15% 25% / 0.1), hsl(210 15% 15% / 0.05));
+    --gradient-accent: linear-gradient(135deg, hsl(168 76% 58%), hsl(168 76% 48%));
+    
+    /* Typography Scale */
+    --font-size-xs: 0.75rem; /* 12px */
+    --font-size-sm: 0.875rem; /* 14px */
+    --font-size-base: 1rem; /* 16px */
+    --font-size-lg: 1.125rem; /* 18px */
+    --font-size-xl: 1.25rem; /* 20px */
+    --font-size-2xl: 1.5rem; /* 24px */
+    --font-size-3xl: 1.875rem; /* 30px */
+    --font-size-4xl: 2.25rem; /* 36px */
+    
+    /* Motion */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Spacing Scale */
+    --space-xs: 0.25rem; /* 4px */
+    --space-sm: 0.5rem; /* 8px */
+    --space-md: 1rem; /* 16px */
+    --space-lg: 1.5rem; /* 24px */
+    --space-xl: 2rem; /* 32px */
+    --space-2xl: 3rem; /* 48px */
+    --space-3xl: 4rem; /* 64px */
 
     --sidebar-background: 0 0% 98%;
 
@@ -54,44 +97,6 @@ All colors MUST be HSL.
 
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
 }
 
 @layer base {
@@ -100,6 +105,98 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, "SF Pro Display", sans-serif;
   }
+}
+
+@layer components {
+  /* Glassmorphism Components */
+  .glass-surface {
+    background: hsl(var(--glass-bg));
+    border: 1px solid hsl(var(--glass-border));
+    backdrop-filter: var(--backdrop-blur);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+  }
+  
+  .glass-card {
+    @apply glass-surface rounded-lg shadow-[var(--shadow-soft)];
+  }
+  
+  /* Video Card Progress Ring */
+  .progress-ring {
+    transform: rotate(-90deg);
+    transition: stroke-dasharray var(--transition-base);
+  }
+  
+  /* Capture Button Variants */
+  .capture-button {
+    @apply relative w-20 h-20 rounded-full border-4 border-white/20 bg-transparent;
+    @apply transition-all duration-200 active:scale-95;
+  }
+  
+  .capture-button::before {
+    content: '';
+    @apply absolute inset-2 rounded-full bg-white;
+    @apply transition-all duration-200;
+  }
+  
+  .capture-button.recording::before {
+    @apply bg-red-500 rounded-sm inset-6;
+  }
+  
+  /* Premium Button Variants */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground rounded-xl px-6 py-3 font-medium;
+    @apply transition-all duration-200 hover:shadow-[var(--shadow-glow)] active:scale-95;
+    background: var(--gradient-accent);
+  }
+  
+  .btn-secondary {
+    @apply glass-surface text-foreground rounded-xl px-6 py-3 font-medium;
+    @apply transition-all duration-200 hover:bg-secondary/50 active:scale-95;
+  }
+  
+  .btn-ghost {
+    @apply text-foreground rounded-xl px-4 py-2 font-medium;
+    @apply transition-all duration-200 hover:bg-muted/50 active:scale-95;
+  }
+  
+  /* Icon Button Variants */
+  .icon-button {
+    @apply w-11 h-11 rounded-full glass-surface flex items-center justify-center;
+    @apply transition-all duration-200 hover:bg-muted/50 active:scale-95;
+  }
+  
+  .icon-button-primary {
+    @apply w-11 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center;
+    @apply transition-all duration-200 hover:shadow-[var(--shadow-glow)] active:scale-95;
+  }
+  
+  /* Video Overlay Gradients */
+  .video-overlay-top {
+    background: linear-gradient(180deg, hsl(210 9% 4% / 0.6) 0%, transparent 100%);
+  }
+  
+  .video-overlay-bottom {
+    background: var(--gradient-overlay);
+  }
+  
+  /* Motion Effects */
+  .animate-like {
+    animation: like-burst 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  
+  @keyframes like-burst {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  
+  /* Blur Effects */
+  .backdrop-blur-header {
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+  }
+}
 }
