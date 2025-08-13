@@ -20,7 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchModal } from "@/components/SearchModal";
 import { UserProfile } from "@/components/UserProfile";
-import { InfiniteScroll } from "@/components/InfiniteScroll";
+import { Virtuoso } from "react-virtuoso";
+// import { InfiniteScroll } from "@/components/InfiniteScroll"; // Replaced by Virtuoso virtualization
 import { SampleDataButton } from "@/components/SampleDataButton";
 
 
@@ -68,7 +69,7 @@ const Index = () => {
     toggleMute,
     isMuted
   } = useVideoManager({
-    preloadDistance: 2,
+    preloadDistance: 3,
     maxActiveVideos: 5,
     networkAware: true
   });
@@ -304,17 +305,16 @@ const Index = () => {
     // Regular content for each tab
     if (activeTab === 'home') {
       return (
-        <InfiniteScroll
-          hasMore={hasMore}
-          isLoading={loadingMore}
-          onLoadMore={loadMore}
-          className="w-full"
-        >
-          {videos.map((video, index) => (
-            <div 
+        <Virtuoso
+          style={{ height: 'calc(100vh - 144px)' }}
+          data={videos}
+          endReached={loadMore}
+          increaseViewportBy={{ top: 200, bottom: 200 }}
+          itemContent={(index, video) => (
+            <div
               key={video.id}
               data-video-id={video.id}
-              className="w-full h-screen snap-start"
+              className="w-full h-full snap-start"
             >
               <EnhancedVideoCard
                 id={video.id}
@@ -352,8 +352,8 @@ const Index = () => {
                 triggerHaptic={triggerHaptic}
               />
             </div>
-          ))}
-        </InfiniteScroll>
+          )}
+        />
       );
     }
 

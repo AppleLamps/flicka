@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { Heart, MessageCircle, Share, Plus, Play, Repeat2, Bookmark, MoreHorizontal, Loader2, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFollowState } from "@/hooks/useFollowState";
@@ -41,7 +41,7 @@ interface VideoCardProps {
   onToggleMute?: () => void;
 }
 
-export const EnhancedVideoCard = ({
+const EnhancedVideoCardBase = ({
   id,
   videoUrl,
   thumbnailUrl,
@@ -549,3 +549,5 @@ export const EnhancedVideoCard = ({
     </div>
   );
 };
+
+export const EnhancedVideoCard = memo(EnhancedVideoCardBase);

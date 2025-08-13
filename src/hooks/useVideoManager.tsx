@@ -6,6 +6,7 @@ interface VideoElement {
   isVisible: boolean;
   isPreloaded: boolean;
   loadPriority: 'high' | 'medium' | 'low';
+  index?: number;
 }
 
 interface UseVideoManagerOptions {
@@ -36,6 +37,7 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
   };
   const videoListeners = useRef<WeakMap<HTMLVideoElement, ListenerSet>>(new WeakMap());
   const observer = useRef<IntersectionObserver | null>(null);
+  const visibilityTimers = useRef<Map<string, number>>(new Map());
   const memoryCleanupTimer = useRef<NodeJS.Timeout>();
 
   // Network detection
@@ -70,17 +72,28 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
 
   const cleanupMemory = useCallback(() => {
     const elements = Array.from(videoElements.current.values());
-    const activeElements = elements
-      .filter(el => el.isVisible || Math.abs(elements.indexOf(el) - currentVideoIndex) <= options.preloadDistance)
-      .slice(0, options.maxActiveVideos);
+    const keepIds = new Set<string>();
 
-    // Remove elements that are too far away
+    // Always keep currently focused and nearby items based on their index
     elements.forEach(el => {
-      if (!activeElements.includes(el)) {
-        detachElementListeners(el.element);
-        el.element.src = '';
-        el.element.load();
-        videoElements.current.delete(el.id);
+      if (el.index !== undefined && Math.abs(el.index - currentVideoIndex) <= options.preloadDistance) {
+        keepIds.add(el.id);
+      }
+      if (el.isVisible) {
+        keepIds.add(el.id);
+      }
+    });
+
+    // Limit total active videos for memory safety
+    const limitedKeep = new Set<string>();
+    Array.from(keepIds).slice(0, options.maxActiveVideos).forEach(id => limitedKeep.add(id));
+
+    videoElements.current.forEach((video, id) => {
+      if (!limitedKeep.has(id)) {
+        detachElementListeners(video.element);
+        video.element.removeAttribute('src');
+        video.element.load();
+        videoElements.current.delete(id);
       }
     });
   }, [currentVideoIndex, options.preloadDistance, options.maxActiveVideos]);
@@ -155,7 +168,8 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
         id: videoId,
         isVisible: false,
         isPreloaded: existing?.isPreloaded || false,
-        loadPriority: 'high'
+        loadPriority: 'high',
+        index: existing?.index
       });
       element.muted = isMuted;
     } else {
@@ -169,15 +183,23 @@ export const useVideoManager = (options: UseVideoManagerOptions = {
 
   // Update video visibility
   const updateVideoVisibility = useCallback((videoId: string, isVisible: boolean, index: number) => {
-    const element = videoElements.current.get(videoId);
-    if (element) {
-      element.isVisible = isVisible;
-      videoElements.current.set(videoId, element);
-      
-      if (isVisible) {
-        setCurrentVideoIndex(index);
-      }
+    // Debounce rapid visibility toggles to avoid thrashing during fast scrolls
+    const existingTimer = visibilityTimers.current.get(videoId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
     }
+    const timer = window.setTimeout(() => {
+      const element = videoElements.current.get(videoId);
+      if (element) {
+        element.isVisible = isVisible;
+        element.index = index;
+        videoElements.current.set(videoId, element);
+        if (isVisible) {
+          setCurrentVideoIndex(index);
+        }
+      }
+    }, 120);
+    visibilityTimers.current.set(videoId, timer);
   }, []);
 
   // Play/pause management
