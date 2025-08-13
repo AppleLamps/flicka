@@ -311,10 +311,11 @@ const Index = () => {
           endReached={loadMore}
           increaseViewportBy={{ top: 200, bottom: 200 }}
           itemContent={(index, video) => (
-            <div
+              <div
               key={video.id}
               data-video-id={video.id}
-              className="w-full h-full snap-start"
+                id={`feed-item-${index}`}
+                className="w-full h-screen snap-start snap-always"
             >
               <EnhancedVideoCard
                 id={video.id}
@@ -444,7 +445,7 @@ const Index = () => {
       />
 
       {/* Main Content */}
-      <main className="pt-16 pb-20" ref={containerRef} role="main" aria-label={`${activeTab} feed`}>
+      <main className="pt-16 pb-20 snap-y snap-mandatory" ref={containerRef} role="main" aria-label={`${activeTab} feed`}>
         {renderContent()}
       </main>
 

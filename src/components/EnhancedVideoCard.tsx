@@ -259,7 +259,7 @@ const EnhancedVideoCardBase = ({
   };
 
   return (
-    <div ref={intersectionRef} className="relative w-full h-screen bg-black overflow-hidden">
+    <div ref={intersectionRef} className="relative w-full h-screen bg-black overflow-hidden snap-start">
       {/* Progressive Image Loading */}
       {thumbnailUrl && !imageLoaded && (
         <div className="absolute inset-0 bg-gradient-to-br from-muted/50 to-muted animate-pulse" />

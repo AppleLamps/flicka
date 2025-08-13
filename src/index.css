@@ -208,7 +208,6 @@
   /* Mobile optimizations */
   html {
     scroll-behavior: smooth;
-    scroll-snap-type: y mandatory;
     overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
