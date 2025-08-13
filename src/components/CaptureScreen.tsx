@@ -13,10 +13,12 @@ import {
   Captions
 } from "lucide-react";
 import { PostFlowModal } from "./PostFlowModal";
+import { useSocialFeatures } from "@/hooks/useSocialFeatures";
+import { useToast } from "@/hooks/use-toast";
 
 interface CaptureScreenProps {
   onClose: () => void;
-  onPost?: (videoData: any) => void;
+  onPost?: () => void;
 }
 
 interface VideoClip {
@@ -26,6 +28,8 @@ interface VideoClip {
 }
 
 export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
+  const { uploadVideo, postVideo } = useSocialFeatures();
+  const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
   const [clips, setClips] = useState<VideoClip[]>([]);
   const [totalDuration, setTotalDuration] = useState(0);
@@ -187,9 +191,59 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
     }
   };
 
-  const handlePost = (postData: any) => {
-    onPost?.({ clips, ...postData });
-    onClose();
+  const handlePost = async (postData: {
+    caption: string;
+    hashtags: string[];
+    audioTitle?: string;
+  }) => {
+    try {
+      if (clips.length === 0) return;
+
+      // Combine all clips into one video blob
+      const combinedBlob = new Blob(clips.map(clip => clip.data), { type: 'video/webm' });
+      
+      // Convert to File for upload
+      const videoFile = new File([combinedBlob], `video-${Date.now()}.webm`, { type: 'video/webm' });
+
+      toast({
+        title: "Uploading video...",
+        description: "Please wait while we process your video.",
+      });
+
+      // Upload video to storage
+      const videoUrl = await uploadVideo(videoFile);
+      
+      if (!videoUrl) {
+        throw new Error('Failed to upload video');
+      }
+
+      // Post video with metadata
+      const result = await postVideo({
+        title: postData.caption.substring(0, 100),
+        description: postData.caption,
+        video_url: videoUrl,
+        duration: Math.round(totalDuration),
+        hashtags: postData.hashtags,
+        audio_title: postData.audioTitle,
+      });
+
+      if (result) {
+        toast({
+          title: "Video posted successfully!",
+          description: "Your loop is now live.",
+        });
+        
+        onPost?.(); // Refresh the feed
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error posting video:', error);
+      toast({
+        title: "Failed to post video",
+        description: "Please try again later.",
+        variant: "destructive",
+      });
+    }
   };
 
   const canRecord = totalDuration < MAX_DURATION;

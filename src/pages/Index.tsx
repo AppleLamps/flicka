@@ -18,110 +18,6 @@ import { useSocialFeatures } from "@/hooks/useSocialFeatures";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-// Mock data
-const mockVideos = [
-  {
-    id: "1",
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    thumbnailUrl: "https://images.unsplash.com/photo-1611647832580-377268dba7cb?w=400",
-    user: {
-      id: "user1",
-      username: "creativeartist",
-      displayName: "Creative Artist",
-      avatarUrl: "https://images.unsplash.com/photo-1494790108755-2616b612b5c4?w=100",
-      isFollowing: false
-    },
-    caption: "Just experimenting with some new lighting techniques in my studio setup! ✨",
-    hashtags: ["photography", "studio", "lighting", "creative"],
-    audioTitle: "Chill Vibes - Lo-fi Hip Hop",
-    stats: {
-      likes: 1240,
-      comments: 89,
-      shares: 156,
-      saves: 45,
-      revines: 23
-    },
-    isLiked: false
-  },
-  {
-    id: "2", 
-    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    thumbnailUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400",
-    user: {
-      id: "user2",
-      username: "urbandancer",
-      displayName: "Urban Dancer",
-      avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100",
-      isFollowing: true
-    },
-    caption: "Morning practice session in the city. The energy here is unmatched! 🔥",
-    hashtags: ["dance", "urban", "morning", "energy", "city"],
-    audioTitle: "Street Beats - Hip Hop Mix",
-    stats: {
-      likes: 2890,
-      comments: 234,
-      shares: 445,
-      saves: 123,
-      revines: 67
-    },
-    isLiked: true
-  }
-];
-
-const mockComments = [
-  {
-    id: "1",
-    user: {
-      id: "commenter1",
-      username: "photolover",
-      displayName: "Photo Lover",
-      avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100"
-    },
-    text: "This lighting setup is incredible! Can you share what equipment you're using?",
-    timestamp: "2024-01-15T10:30:00Z",
-    likes: 12,
-    isLiked: false,
-    replies: [
-      {
-        id: "1-1",
-        user: {
-          id: "user1",
-          username: "creativeartist", 
-          displayName: "Creative Artist"
-        },
-        text: "Thanks! I'm using a Godox AD400 Pro with a 120cm softbox 📸",
-        timestamp: "2024-01-15T10:45:00Z",
-        likes: 5,
-        isLiked: false
-      }
-    ]
-  },
-  {
-    id: "2",
-    user: {
-      id: "commenter2",
-      username: "studiovibes",
-      displayName: "Studio Vibes",
-      avatarUrl: "https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=100"
-    },
-    text: "The shadows are perfect! Really inspiring work 🙌",
-    timestamp: "2024-01-15T11:00:00Z",
-    likes: 8,
-    isLiked: true
-  },
-  {
-    id: "3",
-    user: {
-      id: "commenter3",
-      username: "newbietographer",
-      displayName: "Newbie Photographer"
-    },
-    text: "As someone just starting out, this gives me so much motivation to keep practicing!",
-    timestamp: "2024-01-15T11:15:00Z",
-    likes: 3,
-    isLiked: false
-  }
-];
 
 const Index = () => {
   const { user, loading: authLoading, profile, signOut } = useAuth();
@@ -179,14 +75,10 @@ const Index = () => {
     }
   }, [prefersReducedMotion]);
 
-  // Simulate loading state for demo
+  // Update loading state based on videos loading
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, []);
+    setIsLoading(videosLoading);
+  }, [videosLoading]);
 
   // Network error handling
   useEffect(() => {
@@ -203,17 +95,17 @@ const Index = () => {
   useEffect(() => {
     // Preload adjacent videos
     const preloadAdjacent = () => {
-      mockVideos.forEach((video, index) => {
+      videos.forEach((video, index) => {
         const distance = Math.abs(index - currentVideoIndex);
         if (distance <= 2 && distance > 0) {
           const priority = distance === 1 ? 'high' : 'medium';
-          preloadVideo(video.id, video.videoUrl, priority);
+          preloadVideo(video.id, video.video_url, priority);
         }
       });
     };
 
     preloadAdjacent();
-  }, [currentVideoIndex, preloadVideo]);
+  }, [currentVideoIndex, preloadVideo, videos]);
 
   // Background tab handling - pause all videos when tab becomes inactive
   useEffect(() => {
@@ -265,6 +157,7 @@ const Index = () => {
   const handleCaptureClose = () => {
     setShowCapture(false);
     setActiveTab('home');
+    refreshVideos(); // Refresh videos when returning from capture
   };
 
   const handleVideoComment = (videoId: string) => {
@@ -306,7 +199,7 @@ const Index = () => {
 
   // Show capture screen
   if (showCapture) {
-    return <CaptureScreen onClose={handleCaptureClose} />;
+    return <CaptureScreen onClose={handleCaptureClose} onPost={refreshVideos} />;
   }
 
   // Content rendering logic

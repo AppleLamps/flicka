@@ -93,6 +93,28 @@ export const useComments = (videoId?: string) => {
   useEffect(() => {
     if (videoId) {
       fetchComments(videoId);
+
+      // Set up real-time subscription for new comments on this video
+      const channel = supabase
+        .channel(`comments:video_id=eq.${videoId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'comments',
+            filter: `video_id=eq.${videoId}`
+          },
+          (payload) => {
+            console.log('New comment added:', payload);
+            fetchComments(videoId); // Refresh comments to get profile data
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [videoId]);
 

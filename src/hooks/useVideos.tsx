@@ -67,6 +67,27 @@ export const useVideos = () => {
 
   useEffect(() => {
     fetchVideos();
+
+    // Set up real-time subscription for new videos
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'videos'
+        },
+        (payload) => {
+          console.log('New video added:', payload);
+          refreshVideos(); // Refresh the entire list to get profile data
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return {
