@@ -1,4 +1,4 @@
-import { Home, Compass, Camera, Bell, User, Bookmark } from "lucide-react";
+import { Home, Compass, Camera, Bell, User } from "lucide-react";
 
 interface BottomNavigationProps {
   activeTab: 'home' | 'explore' | 'capture' | 'notifications' | 'saved' | 'profile';
@@ -16,13 +16,12 @@ export const BottomNavigation = ({
     { id: 'explore' as const, icon: Compass, label: 'Explore' },
     { id: 'capture' as const, icon: Camera, label: 'Capture', isPrimary: true },
     { id: 'notifications' as const, icon: Bell, label: 'Notifications', hasIndicator: hasNotifications },
-    { id: 'saved' as const, icon: Bookmark, label: 'Saved' },
     { id: 'profile' as const, icon: User, label: 'Profile' },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 backdrop-blur-header border-t border-border/20 h-[var(--bottom-nav-height)]">
-      <div className="flex items-center justify-around px-4 py-2">
+      <div className="grid grid-cols-5 place-items-center px-4 py-2">
         {tabs.map(({ id, icon: Icon, label, isPrimary, hasIndicator }) => (
           <button
             key={id}

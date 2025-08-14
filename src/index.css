@@ -102,7 +102,8 @@
 
     /* Navigation/overlay sizing for mobile optimization */
     --bottom-nav-height: 72px; /* keep in sync with BottomNavigation visual height */
-    --overlay-bottom-gap: 80px; /* extra breathing room above nav - optimized for TikTok/Instagram feel */
+    /* Responsive breathing room above footer to lift action rail higher */
+    --overlay-bottom-gap: clamp(64px, 12vh, 120px);
     --overlay-bottom-padding: calc(var(--bottom-nav-height) + var(--overlay-bottom-gap));
   }
 }

@@ -608,7 +608,7 @@ const EnhancedVideoCardBase = ({
       </div>
 
       {/* Bottom Overlay - Caption & Enhanced Actions */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-[var(--overlay-bottom-padding)] md:pb-6 video-overlay-bottom pointer-events-none">
+      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-[var(--overlay-bottom-padding)] video-overlay-bottom pointer-events-none">
         <div className="flex items-end justify-between gap-4">
           <div className="flex-1 text-white">
             <p className="text-base mb-2 leading-relaxed">{caption}</p>

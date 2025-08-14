@@ -200,11 +200,18 @@ export const CaptureScreen = ({ onClose, onPost }: CaptureScreenProps) => {
   const handleFileSelected = (file: File, duration: number) => {
     setUploadedFile({ file, duration });
     setTotalDuration(Math.min(duration, MAX_DURATION));
+    // Exit upload view and immediately open editor
+    setMode('record');
     setEditorOpen(true);
   };
 
   const handleShowPostFlow = () => {
     if (uploadedFile) {
+      // If a file is uploaded but editor isn't open yet, open it first
+      if (!editorOpen) {
+        setEditorOpen(true);
+        return;
+      }
       setShowPostFlow(true);
       return;
     }

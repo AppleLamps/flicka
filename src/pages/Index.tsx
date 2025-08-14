@@ -146,9 +146,16 @@ const Index = () => {
     triggerHaptic('light');
     if (tab === 'capture') {
       setShowCapture(true);
-    } else {
-      setActiveTab(tab);
+      return;
     }
+    if (tab === 'profile') {
+      if (user?.id) {
+        setSelectedUserId(user.id);
+        setShowUserProfile(true);
+      }
+      return;
+    }
+    setActiveTab(tab);
   };
 
   const handleRefresh = () => {
