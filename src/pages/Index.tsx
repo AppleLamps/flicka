@@ -363,7 +363,7 @@ const Index = () => {
       />
 
       {/* Main Content */}
-      <main className="pt-16 pb-20 h-screen overflow-hidden" role="main" aria-label={`${activeTab} feed`}>
+      <main className="pt-16 pb-20 h-screen overflow-hidden hide-scrollbar" role="main" aria-label={`${activeTab} feed`}>
         {renderContent()}
       </main>
 

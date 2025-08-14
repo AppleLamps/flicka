@@ -139,7 +139,7 @@ const VideoFeedBase = ({
   return (
     <div 
       ref={containerRef}
-      className="h-full overflow-y-auto snap-y snap-mandatory scroll-smooth overscroll-none touch-scroll-smooth"
+      className="h-full overflow-y-auto snap-y snap-mandatory scroll-smooth overscroll-none touch-scroll-smooth hide-scrollbar"
     >
       {videos.map((video, index) => (
         <div
