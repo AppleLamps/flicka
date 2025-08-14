@@ -41,7 +41,7 @@ interface VideoDetailSheetProps {
   comments: Comment[];
   isLoadingComments?: boolean;
   onShare?: () => void;
-  onCommentSubmit?: (text: string) => void;
+  onCommentSubmit?: (text: string, parentId?: string) => void;
   onCommentLike?: (commentId: string) => void;
 }
 
@@ -60,6 +60,8 @@ export const VideoDetailSheet = ({
   const [dragStartY, setDragStartY] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
+  const [showMore, setShowMore] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -91,8 +93,9 @@ export const VideoDetailSheet = ({
 
     setIsSubmitting(true);
     try {
-      await onCommentSubmit?.(commentText);
+      await onCommentSubmit?.(commentText, replyTo?.id);
       setCommentText("");
+      setReplyTo(null);
       // Add haptic feedback for success
       if ('vibrate' in navigator) {
         navigator.vibrate([10, 50, 10]);
@@ -174,7 +177,7 @@ export const VideoDetailSheet = ({
             <button onClick={onShare} className="icon-button" aria-label="Share" title="Share">
               <Share size={20} />
             </button>
-            <button className="icon-button" aria-label="More options" title="More options">
+            <button className="icon-button" aria-label="More options" title="More options" onClick={() => setShowMore(v => !v)}>
               <MoreHorizontal size={20} />
             </button>
             <button onClick={onClose} className="icon-button" aria-label="Close" title="Close">
@@ -182,6 +185,20 @@ export const VideoDetailSheet = ({
             </button>
           </div>
         </div>
+
+        {showMore && (
+          <div className="absolute right-4 top-16 z-50 bg-background border border-border/20 rounded-xl shadow-lg p-2 w-44">
+            <button className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/60" onClick={() => { navigator.clipboard.writeText(window.location.origin + '/?v=' + video.id); setShowMore(false); }}>
+              Copy link
+            </button>
+            <button className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/60" onClick={() => { setShowMore(false); }}>
+              Save
+            </button>
+            <button className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/60 text-destructive" onClick={() => { setShowMore(false); }}>
+              Report
+            </button>
+          </div>
+        )}
 
         {/* Comments List */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -250,7 +267,7 @@ export const VideoDetailSheet = ({
                         <span className="text-xs">{comment.likes}</span>
                       </button>
                       
-                      <button className="text-muted-foreground hover:text-primary transition-colors text-xs">
+                      <button className="text-muted-foreground hover:text-primary transition-colors text-xs" onClick={() => { setReplyTo({ id: comment.id, username: comment.user.username }); setCommentText(prev => prev.length === 0 ? `@${comment.user.username} ` : prev); }}>
                         Reply
                       </button>
                     </div>
@@ -290,6 +307,12 @@ export const VideoDetailSheet = ({
 
         {/* Comment Input */}
         <div className="p-4 border-t border-border/20 bg-background">
+          {replyTo && (
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+              <span>Replying to @{replyTo.username}</span>
+              <button className="hover:underline" onClick={() => setReplyTo(null)}>Cancel</button>
+            </div>
+          )}
           <form onSubmit={handleCommentSubmit} className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-muted overflow-hidden flex-shrink-0">
               <div className="w-full h-full bg-gradient-to-br from-primary/50 to-primary flex items-center justify-center">
@@ -302,7 +325,7 @@ export const VideoDetailSheet = ({
                 type="text"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment..."
+                placeholder={replyTo ? `Reply to @${replyTo.username}...` : "Add a comment..."}
                 className="w-full bg-muted/50 text-foreground placeholder-muted-foreground px-4 py-2 rounded-full border border-transparent focus:border-primary focus:outline-none transition-colors"
                 disabled={isSubmitting}
               />

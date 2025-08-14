@@ -252,6 +252,37 @@ export const useSocialFeatures = () => {
     }
   };
 
+  const recordShare = async (videoId: string): Promise<boolean> => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to share videos',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    try {
+      const { data: existing } = await supabase
+        .from('shares')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('video_id', videoId)
+        .maybeSingle();
+
+      if (!existing) {
+        const { error } = await supabase
+          .from('shares')
+          .insert({ user_id: user.id, video_id: videoId });
+        if (error) throw error;
+      }
+      return true;
+    } catch (error: unknown) {
+      console.error('Share record failed', error);
+      return false;
+    }
+  };
+
   const uploadVideo = async (file: File) => {
     if (!user) return null;
 
@@ -358,5 +389,6 @@ export const useSocialFeatures = () => {
     uploadVideo,
     uploadThumbnail,
     addComment,
+    recordShare,
   };
 };

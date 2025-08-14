@@ -28,7 +28,7 @@ import { SampleDataButton } from "@/components/SampleDataButton";
 
 const Index = () => {
   const { user, loading: authLoading, profile, signOut } = useAuth();
-  const { toggleLike, toggleFollow, toggleRevine, toggleSave, addComment } = useSocialFeatures();
+  const { toggleLike, toggleFollow, toggleRevine, toggleSave, addComment, recordShare } = useSocialFeatures();
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -38,7 +38,7 @@ const Index = () => {
   const [showSearch, setShowSearch] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<any>(null);
+  const [selectedVideo, setSelectedVideo] = useState<ReturnType<typeof toDetailVideo> | any>(null);
   const [scrollY, setScrollY] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
@@ -46,7 +46,7 @@ const Index = () => {
   
   // Real data hooks with pagination
   const { videos, loading: videosLoading, loadingMore, error: videosError, hasMore, refreshVideos, loadMore } = usePaginatedVideos();
-  const { comments, loading: commentsLoading, addComment: addNewComment, fetchComments } = useComments(selectedVideo?.id);
+  const { comments, loading: commentsLoading, addComment: addNewComment, fetchComments, toggleLike: toggleCommentLike } = useComments(selectedVideo?.id);
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Redirect to auth if not logged in
@@ -203,6 +203,7 @@ const Index = () => {
         await navigator.clipboard.writeText(shareData.url);
         toast({ title: 'Link copied', description: 'Share URL copied to clipboard' });
       }
+      await recordShare(video.id);
     } catch (err) {
       console.error('Share failed', err);
     }
@@ -223,23 +224,22 @@ const Index = () => {
     stats: {
       likes: video.likes_count || 0,
       comments: video.comments_count || 0,
-      shares: 0,
+      shares: (video as any).shares_count || 0,
     },
   });
 
-  const handleCommentSubmit = async (text: string) => {
+  const handleCommentSubmit = async (text: string, parentId?: string) => {
     if (!selectedVideo?.id || !text.trim()) return;
     
     try {
-      await addNewComment(selectedVideo.id, text);
+      await addNewComment(selectedVideo.id, text, parentId);
     } catch (error) {
       console.error('Error posting comment:', error);
     }
   };
 
   const handleCommentLike = (commentId: string) => {
-    console.log('Like comment:', commentId);
-    // Handle comment like
+    toggleCommentLike(commentId);
   };
 
   const handleVideoRef = useCallback((videoId: string, element: HTMLVideoElement | null) => {
@@ -354,8 +354,8 @@ const Index = () => {
                 stats={{
                   likes: video.likes_count,
                   comments: video.comments_count,
-                  shares: 0,
-                  saves: 0,
+                  shares: (video as any).shares_count || 0,
+                  saves: (video as any).saves_count || 0,
                   revines: (video as any).revines_count || 0
                 }}
                 autoPlay={index === currentVideoIndex}
@@ -380,9 +380,21 @@ const Index = () => {
 
     if (activeTab === 'explore') {
       return (
-        <div className="p-4 text-center">
+        <div className="p-4">
           <h2 className="text-2xl font-bold mb-4">Explore</h2>
-          <p className="text-muted-foreground">Discover trending loops and creators</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {videos.map((v) => (
+              <button 
+                key={v.id} 
+                onClick={() => setSelectedVideo(v)} 
+                className="aspect-[9/16] rounded-lg overflow-hidden bg-muted"
+                aria-label="Open video"
+                title="Open video"
+              >
+                <img src={v.thumbnail_url || '/placeholder.svg'} alt={v.title || 'Video thumbnail'} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
         </div>
       );
     }
@@ -488,20 +500,34 @@ const Index = () => {
           isOpen={!!selectedVideo}
           onClose={() => setSelectedVideo(null)}
           video={toDetailVideo(selectedVideo)}
-          comments={comments.map(comment => ({
-            id: comment.id,
-            user: {
-              id: comment.user_id,
-              username: comment.profiles?.username || 'user',
-              displayName: comment.profiles?.display_name || 'User',
-              avatarUrl: comment.profiles?.avatar_url || '',
-            },
-            text: comment.content,
-            timestamp: comment.created_at,
-            likes: 0,
-            isLiked: false,
-            replies: []
-          }))}
+          comments={(function buildThread() {
+            const nodes: Record<string, any> = {};
+            const roots: any[] = [];
+            comments.forEach((c) => {
+              nodes[c.id] = {
+                id: c.id,
+                user: {
+                  id: c.user_id,
+                  username: c.profiles?.username || 'user',
+                  displayName: c.profiles?.display_name || 'User',
+                  avatarUrl: c.profiles?.avatar_url || '',
+                },
+                text: c.content,
+                timestamp: c.created_at,
+                likes: (c as any).likes_count || 0,
+                isLiked: !!(c as any).liked_by_me,
+                replies: [] as any[],
+              };
+            });
+            comments.forEach((c) => {
+              if ((c as any).parent_id && nodes[(c as any).parent_id]) {
+                nodes[(c as any).parent_id].replies.push(nodes[c.id]);
+              } else {
+                roots.push(nodes[c.id]);
+              }
+            });
+            return roots;
+          })()}
           isLoadingComments={commentsLoading}
           onShare={() => selectedVideo && handleShare(selectedVideo)}
           onCommentSubmit={handleCommentSubmit}

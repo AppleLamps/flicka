@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileEditModal } from "./ProfileEditModal";
 import { ShareSheet } from "./ShareSheet";
 import { CollectionGrid } from "./CollectionGrid";
+import { useSocialFeatures } from "@/hooks/useSocialFeatures";
 
 interface UserProfileProps {
   userId?: string;
@@ -32,6 +33,9 @@ interface ProfileData {
   following_count: number;
   videos_count: number;
   created_at: string;
+  banner_url?: string;
+  website_url?: string;
+  links?: any;
 }
 
 interface FollowersModalProps {
@@ -42,8 +46,11 @@ interface FollowersModalProps {
 }
 
 const FollowersModal = ({ open, onOpenChange, userId, type }: FollowersModalProps) => {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<Array<{ profiles: { user_id: string; username: string; display_name: string; avatar_url?: string } }>>([]);
   const [loading, setLoading] = useState(false);
+  const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
+  const { user } = useAuth();
+  const { toggleFollow } = useSocialFeatures();
 
   useEffect(() => {
     if (open && userId) {
@@ -68,7 +75,28 @@ const FollowersModal = ({ open, onOpenChange, userId, type }: FollowersModalProp
         .eq(type === 'followers' ? 'following_id' : 'follower_id', userId);
 
       if (error) throw error;
-      setUsers(data || []);
+      const list = (data || []) as Array<{ profiles: { user_id: string; username: string; display_name: string; avatar_url?: string } }>;
+      setUsers(list);
+
+      // Preload following status for current user
+      if (user && list.length > 0) {
+        const targetIds = list.map((item) => item.profiles?.user_id).filter(Boolean) as string[];
+        if (targetIds.length > 0) {
+          const { data: followingData } = await supabase
+            .from('follows')
+            .select('following_id')
+            .eq('follower_id', user.id)
+            .in('following_id', targetIds);
+
+          const map: Record<string, boolean> = {};
+          (followingData || []).forEach((row: { following_id: string }) => {
+            map[row.following_id] = true;
+          });
+          setFollowingMap(map);
+        } else {
+          setFollowingMap({});
+        }
+      }
     } catch (error) {
       console.error(`Error loading ${type}:`, error);
     } finally {
@@ -108,8 +136,20 @@ const FollowersModal = ({ open, onOpenChange, userId, type }: FollowersModalProp
                         <p className="text-sm text-muted-foreground">@{profile.username}</p>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" className="rounded-full">
-                      Follow
+                    <Button 
+                      size="sm" 
+                      variant={followingMap[profile.user_id] ? 'secondary' : 'outline'} 
+                      className="rounded-full"
+                      onClick={async () => {
+                        if (!user || user.id === profile.user_id) return;
+                        await toggleFollow(profile.user_id);
+                        setFollowingMap(prev => ({
+                          ...prev,
+                          [profile.user_id]: !prev[profile.user_id]
+                        }));
+                      }}
+                    >
+                      {followingMap[profile.user_id] ? 'Following' : 'Follow'}
                     </Button>
                   </div>
                 );
@@ -326,21 +366,20 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
               <p className="text-foreground mb-4">{profile.bio}</p>
             )}
 
-            {/* Temporarily commented until types regenerate */}
-            {/* {(profile.website_url || (profile as any).links) && (
+            {(profile.website_url || (profile as any)?.links) && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {profile.website_url && (
                   <a href={profile.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-xs">
                     <LinkIcon className="w-3 h-3" /> Website
                   </a>
                 )}
-                {((profile as any).links?.items || []).map((l: any, idx: number) => (
+                {(((profile as any).links?.items) || []).map((l: any, idx: number) => (
                   <a key={idx} href={l.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-muted text-xs">
                     <LinkIcon className="w-3 h-3" /> {l.title || l.url}
                   </a>
                 ))}
               </div>
-            )} */}
+            )}
 
             {/* Stats */}
             <div className="flex gap-6 mb-4">
@@ -380,7 +419,12 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
                     <UserPlus className="w-4 h-4 mr-2" />
                     {isFollowing ? 'Following' : 'Follow'}
                   </Button>
-                  <Button variant="outline" size="sm" className="icon-button">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="icon-button"
+                    onClick={() => toast({ title: 'Messaging coming soon', description: 'We\'re working on messages!' })}
+                  >
                     <MessageCircle className="w-4 h-4" />
                   </Button>
                   <Button variant="outline" size="sm" className="icon-button" onClick={handleShareProfile} aria-label="Share profile" title="Share profile">

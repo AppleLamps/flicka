@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface Comment {
   id: string;
@@ -8,6 +9,9 @@ export interface Comment {
   content: string;
   created_at: string;
   updated_at: string;
+  parent_id?: string | null;
+  likes_count?: number;
+  liked_by_me?: boolean;
   // Profile data
   profiles?: {
     username?: string;
@@ -20,6 +24,7 @@ export const useComments = (videoId?: string) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const fetchComments = async (id: string) => {
     try {
@@ -43,7 +48,21 @@ export const useComments = (videoId?: string) => {
         throw fetchError;
       }
 
-      setComments(data || []);
+      const all = (data || []) as Comment[];
+
+      // Mark liked_by_me
+      if (user && all.length > 0) {
+        const ids = all.map(c => c.id);
+        const { data: likesData } = await supabase
+          .from('comment_likes')
+          .select('comment_id')
+          .eq('user_id', user.id)
+          .in('comment_id', ids);
+        const likedSet = new Set((likesData || []).map((r: { comment_id: string }) => r.comment_id));
+        all.forEach(c => { (c as Comment).liked_by_me = likedSet.has(c.id); });
+      }
+
+      setComments(all);
     } catch (err) {
       console.error('Error fetching comments:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch comments');
@@ -52,14 +71,15 @@ export const useComments = (videoId?: string) => {
     }
   };
 
-  const addComment = async (videoId: string, content: string) => {
+  const addComment = async (videoId: string, content: string, parentId?: string) => {
     try {
       const { data, error } = await supabase
         .from('comments')
         .insert({
           video_id: videoId,
           content: content,
-          user_id: (await supabase.auth.getUser()).data.user?.id
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          parent_id: parentId || null
         })
         .select(`
           *,
@@ -87,6 +107,41 @@ export const useComments = (videoId?: string) => {
     } catch (err) {
       console.error('Error adding comment:', err);
       throw err;
+    }
+  };
+
+  const toggleLike = async (commentId: string) => {
+    try {
+      const currentUser = (await supabase.auth.getUser()).data.user;
+      if (!currentUser) return;
+
+      const { data: existing } = await supabase
+        .from('comment_likes')
+        .select('id')
+        .eq('user_id', currentUser.id)
+        .eq('comment_id', commentId)
+        .maybeSingle();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('comment_likes')
+          .delete()
+          .eq('id', existing.id);
+        if (error) throw error;
+        setComments(prev => prev.map(c => c.id === commentId 
+          ? { ...c, likes_count: Math.max(0, (c.likes_count || 0) - 1), liked_by_me: false } 
+          : c));
+      } else {
+        const { error } = await supabase
+          .from('comment_likes')
+          .insert({ user_id: currentUser.id, comment_id: commentId });
+        if (error) throw error;
+        setComments(prev => prev.map(c => c.id === commentId 
+          ? { ...c, likes_count: (c.likes_count || 0) + 1, liked_by_me: true } 
+          : c));
+      }
+    } catch (err) {
+      console.error('Error toggling comment like:', err);
     }
   };
 
@@ -123,6 +178,7 @@ export const useComments = (videoId?: string) => {
     loading,
     error,
     addComment,
-    fetchComments
+    fetchComments,
+    toggleLike,
   };
 };
