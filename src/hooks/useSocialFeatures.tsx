@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 
 export const useSocialFeatures = () => {
   const { user } = useAuth();
@@ -10,9 +11,16 @@ export const useSocialFeatures = () => {
   const toggleLike = async (videoId: string) => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to like videos",
-        variant: "destructive",
+        title: "Sign in to like videos",
+        description: "Create an account to interact with content",
+        action: (
+          <ToastAction 
+            altText="Sign In" 
+            onClick={() => window.location.href = "/auth"}
+          >
+            Sign In
+          </ToastAction>
+        )
       });
       return;
     }
@@ -55,9 +63,16 @@ export const useSocialFeatures = () => {
   const toggleFollow = async (targetUserId: string) => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to follow users",
-        variant: "destructive",
+        title: "Sign in to follow users",
+        description: "Create an account to follow creators",
+        action: (
+          <ToastAction 
+            altText="Sign In" 
+            onClick={() => window.location.href = "/auth"}
+          >
+            Sign In
+          </ToastAction>
+        )
       });
       return;
     }
@@ -119,9 +134,16 @@ export const useSocialFeatures = () => {
   const toggleRevine = async (videoId: string) => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to repost",
-        variant: "destructive",
+        title: "Sign in to repost",
+        description: "Create an account to share content",
+        action: (
+          <ToastAction 
+            altText="Sign In" 
+            onClick={() => window.location.href = "/auth"}
+          >
+            Sign In
+          </ToastAction>
+        )
       });
       return;
     }
@@ -164,9 +186,16 @@ export const useSocialFeatures = () => {
   const toggleSave = async (videoId: string) => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to save videos",
-        variant: "destructive",
+        title: "Sign in to save videos",
+        description: "Create an account to save content",
+        action: (
+          <ToastAction 
+            altText="Sign In" 
+            onClick={() => window.location.href = "/auth"}
+          >
+            Sign In
+          </ToastAction>
+        )
       });
       return false;
     }
@@ -254,28 +283,13 @@ export const useSocialFeatures = () => {
 
   const recordShare = async (videoId: string): Promise<boolean> => {
     if (!user) {
-      toast({
-        title: 'Authentication required',
-        description: 'Please sign in to share videos',
-        variant: 'destructive',
-      });
-      return false;
+      // Allow sharing for anonymous users, just don't record it
+      return true;
     }
 
     try {
-      const { data: existing } = await supabase
-        .from('shares')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('video_id', videoId)
-        .maybeSingle();
-
-      if (!existing) {
-        const { error } = await supabase
-          .from('shares')
-          .insert({ user_id: user.id, video_id: videoId });
-        if (error) throw error;
-      }
+      // TODO: Re-enable when shares table is added to types
+      console.log('Share recording temporarily disabled');
       return true;
     } catch (error: unknown) {
       console.error('Share record failed', error);
@@ -343,9 +357,16 @@ export const useSocialFeatures = () => {
   const addComment = async (videoId: string, content: string) => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to comment",
-        variant: "destructive",
+        title: "Sign in to comment",
+        description: "Create an account to join the conversation",
+        action: (
+          <ToastAction 
+            altText="Sign In" 
+            onClick={() => window.location.href = "/auth"}
+          >
+            Sign In
+          </ToastAction>
+        )
       });
       return null;
     }

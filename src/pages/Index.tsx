@@ -21,6 +21,7 @@ import { SearchModal } from "@/components/SearchModal";
 import { UserProfile } from "@/components/UserProfile";
 import SavedPage from "./Saved";
 import { SampleDataButton } from "@/components/SampleDataButton";
+import { ToastAction } from "@/components/ui/toast";
 
 
 const Index = () => {
@@ -44,12 +45,7 @@ const Index = () => {
   const { videos, loading: videosLoading, loadingMore, error: videosError, hasMore, refreshVideos, loadMore } = usePaginatedVideos();
   const { comments, loading: commentsLoading, addComment: addNewComment, fetchComments, toggleLike: toggleCommentLike } = useComments(selectedVideo?.id);
   
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [authLoading, user, navigate]);
+  // No automatic redirect to auth - allow anonymous browsing
   
   // Accessibility and error handling hooks
   const { error, handleNetworkError, clearError, retry } = useErrorBoundary();
@@ -93,10 +89,40 @@ const Index = () => {
   const handleTabChange = (tab: typeof activeTab) => {
     triggerHaptic('light');
     if (tab === 'capture') {
+      if (!user) {
+        toast({
+          title: "Sign in to create",
+          description: "Create an account to upload content",
+          action: (
+            <ToastAction 
+              altText="Sign In" 
+              onClick={() => navigate('/auth')}
+            >
+              Sign In
+            </ToastAction>
+          )
+        });
+        return;
+      }
       setShowCapture(true);
       return;
     }
     if (tab === 'profile') {
+      if (!user) {
+        toast({
+          title: "Sign in to view profile",
+          description: "Create an account to access your profile",
+          action: (
+            <ToastAction 
+              altText="Sign In" 
+              onClick={() => navigate('/auth')}
+            >
+              Sign In
+            </ToastAction>
+          )
+        });
+        return;
+      }
       if (user?.id) {
         setSelectedUserId(user.id);
         setShowUserProfile(true);
