@@ -203,7 +203,7 @@ const OptimizedVideoCardBase = ({
       </div>
 
       {/* Bottom Overlay - Caption & Actions */}
-      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-32 video-overlay-bottom">
+      <div className="absolute bottom-0 left-0 right-0 px-4 pt-4 pb-40 video-overlay-bottom">
         <div className="flex items-end justify-between gap-4">
           {/* Caption */}
           <div className="flex-1 text-white">
