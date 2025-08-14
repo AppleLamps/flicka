@@ -126,45 +126,39 @@ export const useSocialFeatures = () => {
       return;
     }
 
-    // Temporarily disabled until Supabase types regenerate
-    toast({
-      title: "Feature coming soon",
-      description: "Reposts will be available once the database updates",
-    });
+    try {
+      // Check if already revined
+      const { data: existing } = await supabase
+        .from('revines')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('video_id', videoId)
+        .maybeSingle();
 
-    // try {
-    //   // Check if already revined
-    //   const { data: existing } = await supabase
-    //     .from('revines')
-    //     .select('id')
-    //     .eq('user_id', user.id)
-    //     .eq('video_id', videoId)
-    //     .maybeSingle();
-
-    //   if (existing) {
-    //     // Undo revine
-    //     const { error } = await supabase
-    //       .from('revines')
-    //       .delete()
-    //       .eq('user_id', user.id)
-    //       .eq('video_id', videoId);
-    //     if (error) throw error;
-    //     toast({ title: 'Repost removed' });
-    //   } else {
-    //     // Create revine record
-    //     const { error } = await supabase
-    //       .from('revines')
-    //       .insert({ user_id: user.id, video_id: videoId });
-    //     if (error) throw error;
-    //     toast({ title: 'Reposted', description: 'Shared to your profile' });
-    //   }
-    // } catch (error: any) {
-    //   toast({
-    //     title: 'Error',
-    //     description: error.message || 'Failed to repost',
-    //     variant: 'destructive',
-    //   });
-    // }
+      if (existing) {
+        // Undo revine
+        const { error } = await supabase
+          .from('revines')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', videoId);
+        if (error) throw error;
+        toast({ title: 'Repost removed' });
+      } else {
+        // Create revine record
+        const { error } = await supabase
+          .from('revines')
+          .insert({ user_id: user.id, video_id: videoId });
+        if (error) throw error;
+        toast({ title: 'Reposted', description: 'Shared to your profile' });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to repost',
+        variant: 'destructive',
+      });
+    }
   };
 
   const toggleSave = async (videoId: string) => {

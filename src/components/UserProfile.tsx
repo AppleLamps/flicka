@@ -12,6 +12,7 @@ import { EnhancedVideoCard } from "./EnhancedVideoCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProfileEditModal } from "./ProfileEditModal";
 import { ShareSheet } from "./ShareSheet";
+import { CollectionGrid } from "./CollectionGrid";
 
 interface UserProfileProps {
   userId?: string;
@@ -461,9 +462,7 @@ export const UserProfile = ({ userId, username, onBack, onVideoSelect }: UserPro
         </TabsContent>
 
         <TabsContent value="saved" className="mt-6">
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Saved collections coming soon</p>
-          </div>
+          <CollectionGrid userId={profile.user_id} />
         </TabsContent>
       </Tabs>
 
