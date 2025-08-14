@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { TopAppBar } from "@/components/TopAppBar";
-import { EnhancedVideoCard } from "@/components/EnhancedVideoCard";
+import { VideoFeed } from "@/components/VideoFeed";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { CaptureScreen } from "@/components/CaptureScreen";
 import { VideoDetailSheet } from "@/components/VideoDetailSheet";
@@ -12,7 +12,6 @@ import { HomeFeedEmpty, ExploreEmpty, NotificationsEmpty, NetworkError } from "@
 import { ProfileEditModal } from "@/components/ProfileEditModal";
 import { useErrorBoundary, useNetworkStatus } from "@/hooks/useErrorBoundary";
 import { useReducedMotion } from "@/hooks/useAccessibility";
-import { useVideoManager } from "@/hooks/useVideoManager";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocialFeatures } from "@/hooks/useSocialFeatures";
 import { Button } from "@/components/ui/button";
@@ -20,9 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { SearchModal } from "@/components/SearchModal";
 import { UserProfile } from "@/components/UserProfile";
-import { Virtuoso } from "react-virtuoso";
 import SavedPage from "./Saved";
-// import { InfiniteScroll } from "@/components/InfiniteScroll"; // Replaced by Virtuoso virtualization
 import { SampleDataButton } from "@/components/SampleDataButton";
 
 
@@ -40,14 +37,12 @@ const Index = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<ReturnType<typeof toDetailVideo> | any>(null);
   const [scrollY, setScrollY] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
-  const [realTimeComments, setRealTimeComments] = useState<any[]>([]);
+  const [isMuted, setIsMuted] = useState(true);
   
   // Real data hooks with pagination
   const { videos, loading: videosLoading, loadingMore, error: videosError, hasMore, refreshVideos, loadMore } = usePaginatedVideos();
   const { comments, loading: commentsLoading, addComment: addNewComment, fetchComments, toggleLike: toggleCommentLike } = useComments(selectedVideo?.id);
-  const containerRef = useRef<HTMLDivElement>(null);
   
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -56,42 +51,18 @@ const Index = () => {
     }
   }, [authLoading, user, navigate]);
   
-  // Enhanced video management
-  const {
-    registerVideo,
-    updateVideoVisibility,
-    playVideo,
-    pauseVideo,
-    pauseAllVideos,
-    preloadVideo,
-    isBuffering,
-    networkType,
-    currentVideoIndex,
-    toggleMute,
-    isMuted
-  } = useVideoManager({
-    preloadDistance: 3,
-    maxActiveVideos: 5,
-    networkAware: true
-  });
-  
   // Accessibility and error handling hooks
   const { error, handleNetworkError, clearError, retry } = useErrorBoundary();
   const isOnline = useNetworkStatus();
   const prefersReducedMotion = useReducedMotion();
 
-  // Haptic feedback helper with reduced motion support
+  // Simplified haptic feedback helper
   const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
     if ('vibrate' in navigator && !prefersReducedMotion) {
       const patterns = { light: 10, medium: 50, heavy: 100 };
       navigator.vibrate(patterns[type]);
     }
   }, [prefersReducedMotion]);
-
-  // Update loading state based on videos loading
-  useEffect(() => {
-    setIsLoading(videosLoading);
-  }, [videosLoading]);
 
   // Network error handling
   useEffect(() => {
@@ -104,33 +75,10 @@ const Index = () => {
     }
   }, [isOnline, handleNetworkError, clearError]);
 
-  // Enhanced video management with preloading
-  useEffect(() => {
-    // Preload adjacent videos
-    const preloadAdjacent = () => {
-      videos.forEach((video, index) => {
-        const distance = Math.abs(index - currentVideoIndex);
-        if (distance <= 2 && distance > 0) {
-          const priority = distance === 1 ? 'high' : 'medium';
-          preloadVideo(video.id, video.video_url, priority);
-        }
-      });
-    };
-
-    preloadAdjacent();
-  }, [currentVideoIndex, preloadVideo, videos]);
-
-  // Background tab handling - pause all videos when tab becomes inactive
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        pauseAllVideos();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [pauseAllVideos]);
+  // Simple mute toggle
+  const handleToggleMute = useCallback(() => {
+    setIsMuted(!isMuted);
+  }, [isMuted]);
 
   // Handle scroll for Top App Bar blur effect
   useEffect(() => {
@@ -160,10 +108,6 @@ const Index = () => {
 
   const handleRefresh = () => {
     refreshVideos();
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
   };
 
   const handleExplore = () => {
@@ -249,37 +193,7 @@ const Index = () => {
     toggleCommentLike(commentId);
   };
 
-  const handleVideoRef = useCallback((videoId: string, element: HTMLVideoElement | null) => {
-    registerVideo(videoId, element);
-  }, [registerVideo]);
 
-  // Desktop keyboard navigation (Up/Down arrow to snap to previous/next video)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (activeTab !== 'home') return;
-      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
-        const next = Math.min(videos.length - 1, currentVideoIndex + 1);
-        const el = document.getElementById(`feed-item-${next}`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
-        const prev = Math.max(0, currentVideoIndex - 1);
-        const el = document.getElementById(`feed-item-${prev}`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [activeTab, currentVideoIndex, videos.length]);
-
-  const handleVideoVisibilityChange = useCallback((videoId: string, index: number, isVisible: boolean) => {
-    updateVideoVisibility(videoId, isVisible, index);
-    
-    if (isVisible) {
-      playVideo(videoId);
-    } else {
-      pauseVideo(videoId);
-    }
-  }, [updateVideoVisibility, playVideo, pauseVideo]);
 
   // Show capture screen
   if (showCapture) {
@@ -306,10 +220,6 @@ const Index = () => {
       return <NetworkError onRetry={retry} />;
     }
 
-    if (isLoading) {
-      return <FeedSkeleton count={3} />;
-    }
-
     // Empty states for different tabs
     if (activeTab === "home" && videos.length === 0 && !videosLoading) {
       return (
@@ -331,56 +241,19 @@ const Index = () => {
     // Regular content for each tab
     if (activeTab === 'home') {
       return (
-        <Virtuoso
-          useWindowScroll
-          data={videos}
-          endReached={loadMore}
-          increaseViewportBy={{ top: 200, bottom: 200 }}
-          itemContent={(index, video) => (
-              <div
-              key={video.id}
-              data-video-id={video.id}
-                id={`feed-item-${index}`}
-                className="feed-item will-change-transform w-full h-screen snap-start snap-always"
-            >
-              <EnhancedVideoCard
-                id={video.id}
-                videoUrl={video.video_url}
-                thumbnailUrl={video.thumbnail_url}
-                user={{
-                  id: video.user_id,
-                  username: video.profiles?.username || 'user',
-                  displayName: video.profiles?.display_name || 'User',
-                  avatarUrl: video.profiles?.avatar_url || '',
-                  isVerified: false,
-                  isPrivate: false
-                }}
-                caption={video.description || ''}
-                hashtags={video.hashtags || []}
-                audioTitle={video.audio_title}
-                stats={{
-                  likes: video.likes_count,
-                  comments: video.comments_count,
-                  shares: (video as any).shares_count || 0,
-                  saves: (video as any).saves_count || 0,
-                  revines: (video as any).revines_count || 0
-                }}
-                autoPlay={index === currentVideoIndex}
-                isBuffering={isBuffering[video.id] || false}
-                isMuted={isMuted}
-                onToggleMute={toggleMute}
-                onComment={() => handleVideoComment(video.id)}
-                onUserClick={() => handleUserClick(video.user_id)}
-                onLike={() => toggleLike(video.id)}
-                onShare={() => handleShare(video)}
-                onRevine={() => toggleRevine(video.id)}
-                onSave={() => toggleSave(video.id)}
-                onVideoRef={(element) => handleVideoRef(video.id, element)}
-                onVisibilityChange={(isVisible) => handleVideoVisibilityChange(video.id, index, isVisible)}
-                triggerHaptic={triggerHaptic}
-              />
-            </div>
-          )}
+        <VideoFeed
+          videos={videos}
+          loading={videosLoading}
+          hasMore={hasMore}
+          onLoadMore={loadMore}
+          onVideoComment={handleVideoComment}
+          onUserClick={handleUserClick}
+          onShare={handleShare}
+          onLike={toggleLike}
+          onRevine={toggleRevine}
+          triggerHaptic={triggerHaptic}
+          isMuted={isMuted}
+          onToggleMute={handleToggleMute}
         />
       );
     }
@@ -490,7 +363,7 @@ const Index = () => {
       />
 
       {/* Main Content */}
-      <main className="pt-16 pb-20 snap-y snap-mandatory" ref={containerRef} role="main" aria-label={`${activeTab} feed`}>
+      <main className="pt-16 pb-20 h-screen overflow-hidden" role="main" aria-label={`${activeTab} feed`}>
         {renderContent()}
       </main>
 
