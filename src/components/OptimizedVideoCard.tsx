@@ -89,20 +89,41 @@ const OptimizedVideoCardBase = ({
     setLikeCount(prev => liked ? prev - 1 : prev + 1);
     triggerHaptic?.('light');
     onLike?.();
-  }, [liked, triggerHaptic, onLike]);
+    
+    // Add visual animation class
+    const buttonElement = document.querySelector(`[data-video-id="${id}"] .like-button`);
+    if (buttonElement) {
+      buttonElement.classList.add('animate-like');
+      setTimeout(() => buttonElement.classList.remove('animate-like'), 600);
+    }
+  }, [liked, triggerHaptic, onLike, id]);
 
   const handleRevine = useCallback(() => {
     setRevined(!revined);
     setRevineCount(prev => revined ? prev - 1 : prev + 1);
     triggerHaptic?.('medium');
     onRevine?.();
-  }, [revined, triggerHaptic, onRevine]);
+    
+    // Add visual animation class
+    const buttonElement = document.querySelector(`[data-video-id="${id}"] .revine-button`);
+    if (buttonElement) {
+      buttonElement.classList.add('animate-revine');
+      setTimeout(() => buttonElement.classList.remove('animate-revine'), 800);
+    }
+  }, [revined, triggerHaptic, onRevine, id]);
 
   const handleFollow = useCallback(() => {
     setFollowing(!following);
     triggerHaptic?.('light');
     onFollow?.();
-  }, [following, triggerHaptic, onFollow]);
+    
+    // Add visual animation class
+    const buttonElement = document.querySelector(`[data-video-id="${id}"] .follow-button`);
+    if (buttonElement) {
+      buttonElement.classList.add('animate-follow');
+      setTimeout(() => buttonElement.classList.remove('animate-follow'), 400);
+    }
+  }, [following, triggerHaptic, onFollow, id]);
 
   const handleVideoClick = useCallback(() => {
     const video = videoRef.current;
@@ -126,7 +147,10 @@ const OptimizedVideoCardBase = ({
   };
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden snap-start">
+    <div 
+      className="relative w-full h-screen bg-black overflow-hidden snap-start feed-item"
+      data-video-id={id}
+    >
       {/* Video */}
       <video
         ref={videoRef}
@@ -188,17 +212,18 @@ const OptimizedVideoCardBase = ({
             </div>
           </button>
 
-          <button
-            onClick={handleFollow}
-            className={cn(
-              "text-sm px-4 py-2 rounded-xl font-medium transition-colors min-w-[80px]",
-              following 
-                ? "bg-secondary text-secondary-foreground" 
-                : "bg-primary text-primary-foreground"
-            )}
-          >
-            {following ? "Following" : "Follow"}
-          </button>
+            <button
+              onClick={handleFollow}
+              className={cn(
+                "text-sm px-4 py-2 rounded-xl font-medium transition-all duration-200 min-w-[80px] follow-button",
+                "hover:scale-105 active:scale-95",
+                following 
+                  ? "bg-secondary text-secondary-foreground hover:bg-secondary/80" 
+                  : "bg-primary text-primary-foreground hover:shadow-glow"
+              )}
+            >
+              {following ? "Following" : "Follow"}
+            </button>
         </div>
       </div>
 
@@ -234,14 +259,15 @@ const OptimizedVideoCardBase = ({
             {/* Like */}
             <button
               onClick={handleLike}
-              className="flex flex-col items-center gap-1 group"
+              className="flex flex-col items-center gap-1 group like-button"
               aria-label={liked ? 'Unlike' : 'Like'}
             >
               <div className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200",
+                "hover:scale-110 active:scale-95 will-change-transform",
                 liked 
-                  ? "bg-red-500 text-white scale-110" 
-                  : "bg-black/30 text-white hover:bg-black/50"
+                  ? "bg-red-500 text-white shadow-lg shadow-red-500/25" 
+                  : "bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm"
               )}>
                 <Heart 
                   size={24} 
@@ -251,7 +277,9 @@ const OptimizedVideoCardBase = ({
                   )}
                 />
               </div>
-              <span className="text-white text-xs font-medium">{formatCount(likeCount)}</span>
+              <span className="text-white text-xs font-medium transition-all duration-200">
+                {formatCount(likeCount)}
+              </span>
             </button>
 
             {/* Comment */}
@@ -260,27 +288,32 @@ const OptimizedVideoCardBase = ({
               className="flex flex-col items-center gap-1"
               aria-label="Open comments"
             >
-              <div className="bg-black/30 text-white hover:bg-black/50 w-12 h-12 rounded-full flex items-center justify-center transition-colors">
+              <div className="bg-black/30 text-white hover:bg-black/50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 backdrop-blur-sm will-change-transform">
                 <MessageCircle size={24} />
               </div>
-              <span className="text-white text-xs font-medium">{formatCount(stats.comments)}</span>
+              <span className="text-white text-xs font-medium transition-all duration-200">
+                {formatCount(stats.comments)}
+              </span>
             </button>
 
             {/* Revine */}
             <button
               onClick={handleRevine}
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 revine-button"
               aria-label={revined ? 'Undo repost' : 'Repost'}
             >
               <div className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200",
+                "hover:scale-110 active:scale-95 will-change-transform",
                 revined 
-                  ? "bg-green-500 text-white scale-110" 
-                  : "bg-black/30 text-white hover:bg-black/50"
+                  ? "bg-green-500 text-white shadow-lg shadow-green-500/25" 
+                  : "bg-black/30 text-white hover:bg-black/50 backdrop-blur-sm"
               )}>
                 <Repeat2 size={24} />
               </div>
-              <span className="text-white text-xs font-medium">{formatCount(revineCount)}</span>
+              <span className="text-white text-xs font-medium transition-all duration-200">
+                {formatCount(revineCount)}
+              </span>
             </button>
 
             {/* Share */}
@@ -289,10 +322,12 @@ const OptimizedVideoCardBase = ({
               className="flex flex-col items-center gap-1"
               aria-label="Share video"
             >
-              <div className="bg-black/30 text-white hover:bg-black/50 w-12 h-12 rounded-full flex items-center justify-center transition-colors">
+              <div className="bg-black/30 text-white hover:bg-black/50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 backdrop-blur-sm will-change-transform">
                 <Share size={24} />
               </div>
-              <span className="text-white text-xs font-medium">{formatCount(stats.shares)}</span>
+              <span className="text-white text-xs font-medium transition-all duration-200">
+                {formatCount(stats.shares)}
+              </span>
             </button>
           </div>
         </div>
